@@ -24,6 +24,7 @@
 
 | что | где |
 |---|---|
+| веб-версия (сайт) | https://superforward.github.io/sberindex-forecast-read/ – лендинг с итогами и интерактивный терминал |
 | методологический отчёт | [`docs/report.md`](docs/report.md), в PDF: [`docs/report.pdf`](docs/report.pdf) |
 | презентация | [`docs/presentation.pdf`](docs/presentation.pdf); интерактивный лендинг открывается главной страницей веб-версии |
 | настройки моделей и детекторов | [`configs/`](configs/) (YAML) |
