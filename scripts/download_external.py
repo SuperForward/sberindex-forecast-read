@@ -69,6 +69,12 @@ WEATHER_REFRESH_DAYS = 7  # чаще перекачивать нет смысл�
 
 
 def weather() -> None:
+    # установка из снимка данных: сырых координат МО нет, а погода уже есть в
+    # готовых данных – пропускаем без ошибки (курсы ЦБ при этом обновляются)
+    if not (EXT_DIR / "wikidata_oktmo_coords.csv").exists():
+        print("weather: нет координат МО (data/raw/external/wikidata_oktmo_coords.csv) – погода не обновляется; "
+              "полная сборка исходников: python -m scripts.download_external")
+        return
     out = EXT_DIR / "weather"
     out.mkdir(exist_ok=True)
     pts = region_points()
