@@ -1,0 +1,79 @@
+/* Общие элементы управления терминала и лендинга: выпадающий список (ctl.js),
+   чекбокс, поле поиска, раскрывающиеся блоки. Цвета берутся из переменных страницы. */
+:root{
+  --ctl-bg:var(--surface,var(--paper,#fff));
+  --ctl-edge:var(--edge,var(--line,rgba(21,25,30,.1)));
+  --ctl-text:var(--text-hi,var(--ink,#15191e));
+  --ctl-muted:var(--muted,#6b7480);
+  --ctl-accent:var(--accent,#21a038);
+  --ctl-soft:var(--accent-d,var(--accent-soft,#e6f4e9));
+  --ctl-hover:var(--hover,rgba(21,25,30,.05));
+  --ctl-r:var(--r,var(--r-ctl,8px));
+  --ctl-ease:cubic-bezier(.2,.7,.2,1);
+}
+
+/* ---------- выпадающий список ---------- */
+select.dd-native{position:absolute!important;width:1px!important;height:1px!important;opacity:0!important;pointer-events:none!important;
+  margin:0!important;padding:0!important;border:0!important;overflow:hidden;clip:rect(0 0 0 0)}
+.dd{position:relative;display:inline-block;vertical-align:middle;max-width:100%}
+.dd-btn{display:inline-flex;align-items:center;gap:10px;width:100%;max-width:100%;min-height:34px;padding:6px 10px 6px 12px;
+  border:1px solid var(--ctl-edge);border-radius:var(--ctl-r);background:var(--well,var(--ctl-bg));box-shadow:var(--well-in,none);
+  color:var(--ctl-text);font:inherit;font-size:14px;line-height:1.3;text-align:left;cursor:pointer;
+  transition:border-color .15s,box-shadow .15s,background-color .15s}
+.dd-btn:hover:not(:disabled){border-color:var(--line-hi,var(--ctl-muted))}
+.dd-btn:focus-visible,.dd.open .dd-btn{outline:none;border-color:var(--ctl-accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--ctl-accent) 22%,transparent)}
+.dd-btn:disabled{opacity:.5;cursor:not-allowed}
+.dd-label{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dd-chev{flex:none;width:7px;height:7px;margin-top:-3px;border-right:1.6px solid var(--ctl-muted);border-bottom:1.6px solid var(--ctl-muted);
+  transform:rotate(45deg);transition:transform .22s var(--ctl-ease),border-color .15s}
+.dd.open .dd-chev{transform:translateY(3px) rotate(225deg);border-color:var(--ctl-accent)}
+
+.dd-pop{position:fixed;z-index:10000;box-sizing:border-box;min-width:120px;max-height:320px;overflow-y:auto;overscroll-behavior:contain;
+  padding:5px;border:1px solid var(--ctl-edge);border-radius:calc(var(--ctl-r) + 3px);
+  background:color-mix(in srgb,var(--ctl-bg) 94%,transparent);-webkit-backdrop-filter:saturate(160%) blur(14px);backdrop-filter:saturate(160%) blur(14px);
+  box-shadow:var(--e2,0 12px 32px -8px rgba(21,25,30,.3));font-size:14px;
+  opacity:0;transform:translateY(-6px) scale(.98);transform-origin:var(--ox,50%) var(--oy,0);pointer-events:none;visibility:hidden;
+  transition:opacity .14s ease,transform .18s var(--ctl-ease),visibility 0s .18s}
+.dd-pop.up{transform:translateY(6px) scale(.98)}
+.dd-pop.open{opacity:1;transform:none;pointer-events:auto;visibility:visible;transition:opacity .14s ease,transform .18s var(--ctl-ease),visibility 0s}
+.dd-opt{display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:calc(var(--ctl-r) - 1px);color:var(--text,var(--ink2,#434b55));
+  cursor:pointer;line-height:1.35;user-select:none;-webkit-user-select:none;transition:background-color .1s,color .1s}
+.dd-opt .t{flex:1;min-width:0;overflow-wrap:anywhere}
+.dd-opt.act{background:var(--ctl-hover);color:var(--ctl-text)}
+.dd-opt[aria-selected=true]{color:var(--ctl-accent);font-weight:600}
+.dd-opt[aria-selected=true]::after{content:"";flex:none;width:5px;height:9px;margin:-2px 3px 0 0;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(45deg)}
+.dd-opt[aria-disabled=true]{opacity:.4;cursor:not-allowed}
+.dd-pop::-webkit-scrollbar{width:10px}
+@media (prefers-reduced-motion:reduce){.dd-pop,.dd-pop.open,.dd-chev{transition:none}}
+
+/* ---------- чекбокс ---------- */
+input[type=checkbox]{-webkit-appearance:none;appearance:none;flex:none;position:relative;width:18px;height:18px;margin:0;vertical-align:middle;
+  border:1.5px solid var(--line-hi,var(--ctl-muted));border-radius:5px;background:var(--well,var(--ctl-bg));box-shadow:var(--well-in,none);cursor:pointer;
+  transition:background-color .16s,border-color .16s,box-shadow .16s,transform .12s}
+input[type=checkbox]:hover{border-color:var(--ctl-accent)}
+input[type=checkbox]:active{transform:scale(.92)}
+input[type=checkbox]::after{content:"";position:absolute;left:5px;top:1px;width:5px;height:10px;border-right:2px solid #fff;border-bottom:2px solid #fff;
+  transform:rotate(45deg) scale(0);transform-origin:center;transition:transform .18s var(--ctl-ease)}
+input[type=checkbox]:checked{background:var(--ctl-accent);border-color:var(--ctl-accent);box-shadow:none}
+input[type=checkbox]:checked::after{transform:rotate(45deg) scale(1)}
+input[type=checkbox]:focus-visible{outline:none;box-shadow:0 0 0 3px color-mix(in srgb,var(--ctl-accent) 25%,transparent)}
+input[type=checkbox]:disabled{opacity:.5;cursor:not-allowed}
+label:has(>input[type=checkbox]){cursor:pointer;user-select:none;-webkit-user-select:none}
+
+/* ---------- поле поиска: свой крестик вместо системного ---------- */
+input[type=search]{-webkit-appearance:none;appearance:none}
+input[type=search]::-webkit-search-decoration{-webkit-appearance:none}
+input[type=search]::-webkit-search-cancel-button{-webkit-appearance:none;appearance:none;width:14px;height:14px;margin-left:6px;cursor:pointer;opacity:.55;
+  background:var(--ctl-muted);-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 14'%3E%3Cpath d='M3 3l8 8M11 3l-8 8' stroke='%23000' stroke-width='1.8' stroke-linecap='round'/%3E%3C/svg%3E") center/contain no-repeat;
+  transition:opacity .12s,background-color .12s}
+input[type=search]::-webkit-search-cancel-button:hover{opacity:1;background:var(--ctl-text)}
+
+/* ---------- раскрывающиеся блоки ---------- */
+details>summary{cursor:pointer;list-style:none}
+details>summary::-webkit-details-marker{display:none}
+details.sm>summary{display:inline-flex;align-items:center;gap:8px;user-select:none;-webkit-user-select:none;transition:color .12s}
+details.sm>summary::after{content:"";width:6px;height:6px;border-right:1.5px solid currentColor;border-bottom:1.5px solid currentColor;
+  transform:translateY(-2px) rotate(45deg);transition:transform .2s var(--ctl-ease)}
+details.sm[open]>summary::after{transform:translateY(1px) rotate(225deg)}
+details.sm>summary:hover{color:var(--ctl-accent)}
+details>summary:focus-visible{outline:2px solid var(--ctl-accent);outline-offset:3px;border-radius:4px}

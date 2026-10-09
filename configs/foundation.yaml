@@ -1,0 +1,22 @@
+# Фундаментальные модели временных рядов (src/forecast/foundation.py).
+# Веса: python -m worker models  ->  data/models/
+#
+# Какая модель и в какой постановке (рост г/г или уровни) участвует в
+# сравнении – в configs/models.yaml и configs/horizons.yaml. Здесь – как
+# модели запускаются.
+
+# Квантили прогноза: нижний, медиана, верхний. Chronos-Bolt обучен на
+# квантилях 0.1…0.9 – шире не просим (библиотека молча обрежет). Прогноз –
+# медиана; интервал 10–90% использует детектор сдвигов chronos_interval.
+quantiles: [0.1, 0.5, 0.9]
+
+chronos:
+  dtype: float32                 # на процессоре – float32
+
+timesfm:
+  max_context: 64                # точек истории (у нас до 24 месяцев)
+  max_horizon: 16                # максимум горизонта (у нас до 12)
+  normalize_inputs: true
+  per_core_batch_size: 256
+  use_continuous_quantile_head: true
+  fix_quantile_crossing: true    # квантили не пересекаются

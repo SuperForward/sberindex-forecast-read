@@ -1,0 +1,24 @@
+# Согласование прогнозов категорий с общим (scripts/run_reconcile.py).
+# Модель – CatBoost основного сравнения на одном seed: проверяется способ
+# согласования, а не модель. Окна – как в models.yaml.
+#
+# Запуск: python -m scripts.run_reconcile --config reconcile
+seed: 42
+data:
+  panel: data/processed/spending_mo.parquet
+backtest:
+  horizon: 3
+  n_windows: 7
+  step: 1
+model:
+  backend: catboost
+  exclude_features: [target_month,
+                     basket_cost_yoy, housing_price_m2_primary_yoy, housing_price_m2_secondary_yoy, loans_corporate_yoy,
+                     loans_sme_issued_yoy, loans_sme_debt_yoy, loans_sme_overdue_yoy,
+                     prices_fuel_utilities_ai92_yoy, prices_fuel_utilities_diesel_yoy, prices_fuel_utilities_power_yoy,
+                     prices_fuel_utilities_water_cold_yoy, prices_fuel_utilities_water_hot_yoy,
+                     prices_fuel_utilities_heating_yoy, prices_fuel_utilities_gas_yoy]
+  iterations: 400
+  learning_rate: 0.03
+  depth: 6
+  random_seed: 1

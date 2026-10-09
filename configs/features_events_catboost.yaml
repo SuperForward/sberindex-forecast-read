@@ -1,0 +1,277 @@
+# Данные о событиях и ЕМИСС на CatBoost – главной модели (раньше новости,
+# GDELT и ЕМИСС проверялись на LightGBM): признаки основной модели (cur) и
+# они же плюс новости, GDELT, новости+GDELT, акты о ЧС, 15 рядов ЕМИСС в
+# росте г/г (emiss), по 4 seed на 7 окнах models.yaml.
+#
+# Запуск: python -m scripts.run_backtest --config features_events_catboost
+# Сводка: python -m scripts.run_event_eval
+seed: 42
+ensemble_report: false
+data:
+  panel: data/processed/spending_mo.parquet
+  categories:
+  - all
+  full_history_only: true
+backtest:
+  horizon: 3
+  n_windows: 7
+  step: 1
+  min_train: 12
+  n_jobs: -1
+models:
+- name: baseline
+  model: seasonal_naive_drift
+  params:
+    k: 3
+- name: catboost_cur_s1
+  model: global
+  params:
+    backend: catboost
+    iterations: 400
+    learning_rate: 0.03
+    depth: 6
+    exclude_features: &id001
+    - target_month
+    - basket_cost_yoy
+    - housing_price_m2_primary_yoy
+    - housing_price_m2_secondary_yoy
+    - loans_corporate_yoy
+    - loans_sme_issued_yoy
+    - loans_sme_debt_yoy
+    - loans_sme_overdue_yoy
+    - prices_fuel_utilities_ai92_yoy
+    - prices_fuel_utilities_diesel_yoy
+    - prices_fuel_utilities_power_yoy
+    - prices_fuel_utilities_water_cold_yoy
+    - prices_fuel_utilities_water_hot_yoy
+    - prices_fuel_utilities_heating_yoy
+    - prices_fuel_utilities_gas_yoy
+    random_seed: 1
+- name: catboost_cur_s2
+  model: global
+  params:
+    backend: catboost
+    iterations: 400
+    learning_rate: 0.03
+    depth: 6
+    exclude_features: *id001
+    random_seed: 2
+- name: catboost_cur_s3
+  model: global
+  params:
+    backend: catboost
+    iterations: 400
+    learning_rate: 0.03
+    depth: 6
+    exclude_features: *id001
+    random_seed: 3
+- name: catboost_cur_s4
+  model: global
+  params:
+    backend: catboost
+    iterations: 400
+    learning_rate: 0.03
+    depth: 6
+    exclude_features: *id001
+    random_seed: 4
+- name: catboost_news_s1
+  model: global
+  params:
+    backend: catboost
+    iterations: 400
+    learning_rate: 0.03
+    depth: 6
+    exclude_features: *id001
+    news_features: count
+    random_seed: 1
+- name: catboost_news_s2
+  model: global
+  params:
+    backend: catboost
+    iterations: 400
+    learning_rate: 0.03
+    depth: 6
+    exclude_features: *id001
+    news_features: count
+    random_seed: 2
+- name: catboost_news_s3
+  model: global
+  params:
+    backend: catboost
+    iterations: 400
+    learning_rate: 0.03
+    depth: 6
+    exclude_features: *id001
+    news_features: count
+    random_seed: 3
+- name: catboost_news_s4
+  model: global
+  params:
+    backend: catboost
+    iterations: 400
+    learning_rate: 0.03
+    depth: 6
+    exclude_features: *id001
+    news_features: count
+    random_seed: 4
+- name: catboost_gdelt_s1
+  model: global
+  params:
+    backend: catboost
+    iterations: 400
+    learning_rate: 0.03
+    depth: 6
+    exclude_features: *id001
+    gdelt_features: count
+    random_seed: 1
+- name: catboost_gdelt_s2
+  model: global
+  params:
+    backend: catboost
+    iterations: 400
+    learning_rate: 0.03
+    depth: 6
+    exclude_features: *id001
+    gdelt_features: count
+    random_seed: 2
+- name: catboost_gdelt_s3
+  model: global
+  params:
+    backend: catboost
+    iterations: 400
+    learning_rate: 0.03
+    depth: 6
+    exclude_features: *id001
+    gdelt_features: count
+    random_seed: 3
+- name: catboost_gdelt_s4
+  model: global
+  params:
+    backend: catboost
+    iterations: 400
+    learning_rate: 0.03
+    depth: 6
+    exclude_features: *id001
+    gdelt_features: count
+    random_seed: 4
+- name: catboost_news_gdelt_s1
+  model: global
+  params:
+    backend: catboost
+    iterations: 400
+    learning_rate: 0.03
+    depth: 6
+    exclude_features: *id001
+    news_features: count
+    gdelt_features: count
+    random_seed: 1
+- name: catboost_news_gdelt_s2
+  model: global
+  params:
+    backend: catboost
+    iterations: 400
+    learning_rate: 0.03
+    depth: 6
+    exclude_features: *id001
+    news_features: count
+    gdelt_features: count
+    random_seed: 2
+- name: catboost_news_gdelt_s3
+  model: global
+  params:
+    backend: catboost
+    iterations: 400
+    learning_rate: 0.03
+    depth: 6
+    exclude_features: *id001
+    news_features: count
+    gdelt_features: count
+    random_seed: 3
+- name: catboost_news_gdelt_s4
+  model: global
+  params:
+    backend: catboost
+    iterations: 400
+    learning_rate: 0.03
+    depth: 6
+    exclude_features: *id001
+    news_features: count
+    gdelt_features: count
+    random_seed: 4
+- name: catboost_acts_s1
+  model: global
+  params:
+    backend: catboost
+    iterations: 400
+    learning_rate: 0.03
+    depth: 6
+    exclude_features: *id001
+    acts_features: count
+    random_seed: 1
+- name: catboost_acts_s2
+  model: global
+  params:
+    backend: catboost
+    iterations: 400
+    learning_rate: 0.03
+    depth: 6
+    exclude_features: *id001
+    acts_features: count
+    random_seed: 2
+- name: catboost_acts_s3
+  model: global
+  params:
+    backend: catboost
+    iterations: 400
+    learning_rate: 0.03
+    depth: 6
+    exclude_features: *id001
+    acts_features: count
+    random_seed: 3
+- name: catboost_acts_s4
+  model: global
+  params:
+    backend: catboost
+    iterations: 400
+    learning_rate: 0.03
+    depth: 6
+    exclude_features: *id001
+    acts_features: count
+    random_seed: 4
+- name: catboost_emiss_s1
+  model: global
+  params:
+    backend: catboost
+    iterations: 400
+    learning_rate: 0.03
+    depth: 6
+    exclude_features: &id002
+    - target_month
+    random_seed: 1
+- name: catboost_emiss_s2
+  model: global
+  params:
+    backend: catboost
+    iterations: 400
+    learning_rate: 0.03
+    depth: 6
+    exclude_features: *id002
+    random_seed: 2
+- name: catboost_emiss_s3
+  model: global
+  params:
+    backend: catboost
+    iterations: 400
+    learning_rate: 0.03
+    depth: 6
+    exclude_features: *id002
+    random_seed: 3
+- name: catboost_emiss_s4
+  model: global
+  params:
+    backend: catboost
+    iterations: 400
+    learning_rate: 0.03
+    depth: 6
+    exclude_features: *id002
+    random_seed: 4

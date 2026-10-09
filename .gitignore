@@ -1,0 +1,35 @@
+# окружение
+.venv/
+__pycache__/
+*.pyc
+
+# секреты – токены API
+.env
+
+# данные: выгрузки СберИндекса, Росстата, новостей – не в git
+/data/
+
+# выгрузки анализа
+*.csv
+# ...кроме справочников, которые ведутся вручную (реестр событий с источниками)
+!/reference/*.csv
+
+# логи производительности
+*.log
+/logs/
+
+# QtWebEngine persistent profile (localStorage, cookies, cache)
+.webengine/
+
+# сгенерированные отчёты и выгрузки
+/reports/
+*.xlsx
+
+# jupyter
+.ipynb_checkpoints/
+
+# ярлык запуска – абсолютный путь конкретной машины
+*.lnk
+
+# снимки данных для GitHub Release (python -m worker snapshot pack)
+/dist/

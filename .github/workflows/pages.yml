@@ -1,0 +1,51 @@
+# Публичная демо-версия на GitHub Pages: статическая сборка из последнего релиза данных.
+# Запускается вручную (Actions → pages → Run workflow), после выпуска релиза с данными.
+# Сервера в интернете нет – только файлы, только чтение.
+# Перед первым запуском: Settings → Pages → Source: GitHub Actions.
+name: pages
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.lock.txt
+      - name: Установка (без настольного интерфейса)
+        run: |
+          grep -viE "^(pyside6|shiboken6|winrt|colorama)" requirements.lock.txt > req.txt
+          python -m pip install -r req.txt
+      - name: Данные из последнего релиза (с проверкой sha256)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python -m worker snapshot fetch
+      - name: Статическая сборка
+        run: python -m scripts.build_static --out dist/web
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist/web
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

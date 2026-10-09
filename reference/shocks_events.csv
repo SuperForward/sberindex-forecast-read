@@ -1,0 +1,14 @@
+event_id,start_date,region,mo_query,shock_type,subtype,description,source_url
+belg_2023_grayvoron,2023-05-22,Белгородская область,Грайворонский,socio_demographic,security_evacuation,Прорыв ДРГ в Грайворонский округ; режим ЧС на сутки,https://www.rbc.ru/politics/14/08/2024/66bc21949a79470eb45599ec
+belg_2023_shebekino,2023-06-01,Белгородская область,Шебекинский,socio_demographic,security_evacuation,Обстрелы и эвакуация Шебекино; город закрыт с 1 июня 2023,https://www.rbc.ru/politics/02/06/2023/64789aee9a794725ddf32728
+oren_2024_orsk,2024-04-05,Оренбургская область,Орск,socio_demographic,natural_disaster_flood,Прорыв дамбы на Урале в Орске; ЧС регион. 04.04.2024 и федер. 07.04.2024; ~6.6 тыс. домов подтоплено,https://tass.ru/proisshestviya/20461171
+oren_2024_region,2024-04-07,Оренбургская область,,socio_demographic,natural_disaster_flood,Паводок в Оренбургской области: ЧС федерального характера,https://www.vedomosti.ru/society/news/2024/04/07/1030328-pavodok-orenburgskoi-oblasti-poluchil
+kurg_2024_flood,2024-04-08,Курганская область,Курган,socio_demographic,natural_disaster_flood,Паводок на Тоболе: ЧС регионального уровня с 08.04.2024; ~6 тыс. эвакуированных,https://rtvi.com/news/pavodok-2024-chto-proishodit-v-orenburgskoj-kurganskoj-i-sverdlovskoj-oblastyah/
+tyum_2024_ishim,2024-04-09,Тюменская область,Ишим,socio_demographic,natural_disaster_flood,Паводок на Ишиме (Ишим и Ишимский район),https://72.ru/text/incidents/2024/04/09/73440941/
+tyum_2024_abatsky,2024-04-09,Тюменская область,Абатский,socio_demographic,natural_disaster_flood,Паводок на Ишиме у Абатского: уровень выше 12 м,https://72.ru/text/incidents/2024/04/09/73440941/
+kursk_2024_sudzha,2024-08-06,Курская область,Суджанский,socio_demographic,security_evacuation,Бои и эвакуация; ЧС федерального характера с 09.08.2024,https://ria.ru/20240809/mchs-1965131919.html
+kursk_2024_korenevo,2024-08-06,Курская область,Кореневский,socio_demographic,security_evacuation,Бои и эвакуация; ЧС федерального характера с 09.08.2024,https://ria.ru/20240809/mchs-1965131919.html
+kursk_2024_glushkovo,2024-08-14,Курская область,Глушковский,socio_demographic,security_evacuation,Обязательная эвакуация Глушково,https://ria.ru/20240814/evakuatsiya-1966276255.html
+kursk_2024_belaya,2024-08-11,Курская область,Беловский,socio_demographic,security_evacuation,Эвакуация Беловского района,https://www.rbc.ru/politics/11/08/2024/66b7e4d19a794736148c349c
+kursk_2024_rylsk,2024-08-11,Курская область,Рыльский,socio_demographic,security_evacuation,Эвакуация части Рыльского района,https://www.rbc.ru/politics/11/08/2024/66b7e4d19a794736148c349c
+belg_2024_krasnaya_yaruga,2024-08-12,Белгородская область,Краснояружский,socio_demographic,security_evacuation,Эвакуация Краснояружского района; ЧС регион. 14.08 и федер. 15.08.2024,https://www.vedomosti.ru/politics/articles/2024/08/12/1055184-nachalas-evakuatsiya

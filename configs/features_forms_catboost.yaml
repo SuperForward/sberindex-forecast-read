@@ -1,0 +1,443 @@
+# Те же данные в другой форме (src/forecast/global_model.py: EVENT_FORMS,
+# src/features/build.py: EXTRA_FORMS), CatBoost, по 4 seed на 7 окнах:
+#   news/gdelt/acts – флаг события, отклонение от своей нормы МО (dev),
+#     длинные лаги t−3…t−5 (lag6);
+#   emiss – относительный уровень цен (level), рост г/г относительно страны
+#     (rel), изменение за 3 месяца (mom3).
+# Сравнение – с catboost_cur из features_events_catboost.
+#
+# Запуск: python -m scripts.run_backtest --config features_forms_catboost
+# Сводка: python -m scripts.run_event_eval
+seed: 42
+ensemble_report: false
+data:
+  panel: data/processed/spending_mo.parquet
+  categories:
+  - all
+  full_history_only: true
+backtest:
+  horizon: 3
+  n_windows: 7
+  step: 1
+  min_train: 12
+  n_jobs: -1
+models:
+- name: baseline
+  model: seasonal_naive_drift
+  params:
+    k: 3
+- name: catboost_news_flag_s1
+  model: global
+  params:
+    backend: catboost
+    iterations: 400
+    learning_rate: 0.03
+    depth: 6
+    exclude_features: &id001
+    - target_month
+    - basket_cost_yoy
+    - housing_price_m2_primary_yoy
+    - housing_price_m2_secondary_yoy
+    - loans_corporate_yoy
+    - loans_sme_issued_yoy
+    - loans_sme_debt_yoy
+    - loans_sme_overdue_yoy
+    - prices_fuel_utilities_ai92_yoy
+    - prices_fuel_utilities_diesel_yoy
+    - prices_fuel_utilities_power_yoy
+    - prices_fuel_utilities_water_cold_yoy
+    - prices_fuel_utilities_water_hot_yoy
+    - prices_fuel_utilities_heating_yoy
+    - prices_fuel_utilities_gas_yoy
+    news_features: flag
+    random_seed: 1
+- name: catboost_news_flag_s2
+  model: global
+  params:
+    backend: catboost
+    iterations: 400
+    learning_rate: 0.03
+    depth: 6
+    exclude_features: *id001
+    news_features: flag
+    random_seed: 2
+- name: catboost_news_flag_s3
+  model: global
+  params:
+    backend: catboost
+    iterations: 400
+    learning_rate: 0.03
+    depth: 6
+    exclude_features: *id001
+    news_features: flag
+    random_seed: 3
+- name: catboost_news_flag_s4
+  model: global
+  params:
+    backend: catboost
+    iterations: 400
+    learning_rate: 0.03
+    depth: 6
+    exclude_features: *id001
+    news_features: flag
+    random_seed: 4
+- name: catboost_news_dev_s1
+  model: global
+  params:
+    backend: catboost
+    iterations: 400
+    learning_rate: 0.03
+    depth: 6
+    exclude_features: *id001
+    news_features: dev
+    random_seed: 1
+- name: catboost_news_dev_s2
+  model: global
+  params:
+    backend: catboost
+    iterations: 400
+    learning_rate: 0.03
+    depth: 6
+    exclude_features: *id001
+    news_features: dev
+    random_seed: 2
+- name: catboost_news_dev_s3
+  model: global
+  params:
+    backend: catboost
+    iterations: 400
+    learning_rate: 0.03
+    depth: 6
+    exclude_features: *id001
+    news_features: dev
+    random_seed: 3
+- name: catboost_news_dev_s4
+  model: global
+  params:
+    backend: catboost
+    iterations: 400
+    learning_rate: 0.03
+    depth: 6
+    exclude_features: *id001
+    news_features: dev
+    random_seed: 4
+- name: catboost_news_lag6_s1
+  model: global
+  params:
+    backend: catboost
+    iterations: 400
+    learning_rate: 0.03
+    depth: 6
+    exclude_features: *id001
+    news_features: lag6
+    random_seed: 1
+- name: catboost_news_lag6_s2
+  model: global
+  params:
+    backend: catboost
+    iterations: 400
+    learning_rate: 0.03
+    depth: 6
+    exclude_features: *id001
+    news_features: lag6
+    random_seed: 2
+- name: catboost_news_lag6_s3
+  model: global
+  params:
+    backend: catboost
+    iterations: 400
+    learning_rate: 0.03
+    depth: 6
+    exclude_features: *id001
+    news_features: lag6
+    random_seed: 3
+- name: catboost_news_lag6_s4
+  model: global
+  params:
+    backend: catboost
+    iterations: 400
+    learning_rate: 0.03
+    depth: 6
+    exclude_features: *id001
+    news_features: lag6
+    random_seed: 4
+- name: catboost_gdelt_flag_s1
+  model: global
+  params:
+    backend: catboost
+    iterations: 400
+    learning_rate: 0.03
+    depth: 6
+    exclude_features: *id001
+    gdelt_features: flag
+    random_seed: 1
+- name: catboost_gdelt_flag_s2
+  model: global
+  params:
+    backend: catboost
+    iterations: 400
+    learning_rate: 0.03
+    depth: 6
+    exclude_features: *id001
+    gdelt_features: flag
+    random_seed: 2
+- name: catboost_gdelt_flag_s3
+  model: global
+  params:
+    backend: catboost
+    iterations: 400
+    learning_rate: 0.03
+    depth: 6
+    exclude_features: *id001
+    gdelt_features: flag
+    random_seed: 3
+- name: catboost_gdelt_flag_s4
+  model: global
+  params:
+    backend: catboost
+    iterations: 400
+    learning_rate: 0.03
+    depth: 6
+    exclude_features: *id001
+    gdelt_features: flag
+    random_seed: 4
+- name: catboost_gdelt_dev_s1
+  model: global
+  params:
+    backend: catboost
+    iterations: 400
+    learning_rate: 0.03
+    depth: 6
+    exclude_features: *id001
+    gdelt_features: dev
+    random_seed: 1
+- name: catboost_gdelt_dev_s2
+  model: global
+  params:
+    backend: catboost
+    iterations: 400
+    learning_rate: 0.03
+    depth: 6
+    exclude_features: *id001
+    gdelt_features: dev
+    random_seed: 2
+- name: catboost_gdelt_dev_s3
+  model: global
+  params:
+    backend: catboost
+    iterations: 400
+    learning_rate: 0.03
+    depth: 6
+    exclude_features: *id001
+    gdelt_features: dev
+    random_seed: 3
+- name: catboost_gdelt_dev_s4
+  model: global
+  params:
+    backend: catboost
+    iterations: 400
+    learning_rate: 0.03
+    depth: 6
+    exclude_features: *id001
+    gdelt_features: dev
+    random_seed: 4
+- name: catboost_acts_flag_s1
+  model: global
+  params:
+    backend: catboost
+    iterations: 400
+    learning_rate: 0.03
+    depth: 6
+    exclude_features: *id001
+    acts_features: flag
+    random_seed: 1
+- name: catboost_acts_flag_s2
+  model: global
+  params:
+    backend: catboost
+    iterations: 400
+    learning_rate: 0.03
+    depth: 6
+    exclude_features: *id001
+    acts_features: flag
+    random_seed: 2
+- name: catboost_acts_flag_s3
+  model: global
+  params:
+    backend: catboost
+    iterations: 400
+    learning_rate: 0.03
+    depth: 6
+    exclude_features: *id001
+    acts_features: flag
+    random_seed: 3
+- name: catboost_acts_flag_s4
+  model: global
+  params:
+    backend: catboost
+    iterations: 400
+    learning_rate: 0.03
+    depth: 6
+    exclude_features: *id001
+    acts_features: flag
+    random_seed: 4
+- name: catboost_acts_lag6_s1
+  model: global
+  params:
+    backend: catboost
+    iterations: 400
+    learning_rate: 0.03
+    depth: 6
+    exclude_features: *id001
+    acts_features: lag6
+    random_seed: 1
+- name: catboost_acts_lag6_s2
+  model: global
+  params:
+    backend: catboost
+    iterations: 400
+    learning_rate: 0.03
+    depth: 6
+    exclude_features: *id001
+    acts_features: lag6
+    random_seed: 2
+- name: catboost_acts_lag6_s3
+  model: global
+  params:
+    backend: catboost
+    iterations: 400
+    learning_rate: 0.03
+    depth: 6
+    exclude_features: *id001
+    acts_features: lag6
+    random_seed: 3
+- name: catboost_acts_lag6_s4
+  model: global
+  params:
+    backend: catboost
+    iterations: 400
+    learning_rate: 0.03
+    depth: 6
+    exclude_features: *id001
+    acts_features: lag6
+    random_seed: 4
+- name: catboost_emiss_level_s1
+  model: global
+  params:
+    backend: catboost
+    iterations: 400
+    learning_rate: 0.03
+    depth: 6
+    exclude_features: *id001
+    extra_form: level
+    random_seed: 1
+- name: catboost_emiss_level_s2
+  model: global
+  params:
+    backend: catboost
+    iterations: 400
+    learning_rate: 0.03
+    depth: 6
+    exclude_features: *id001
+    extra_form: level
+    random_seed: 2
+- name: catboost_emiss_level_s3
+  model: global
+  params:
+    backend: catboost
+    iterations: 400
+    learning_rate: 0.03
+    depth: 6
+    exclude_features: *id001
+    extra_form: level
+    random_seed: 3
+- name: catboost_emiss_level_s4
+  model: global
+  params:
+    backend: catboost
+    iterations: 400
+    learning_rate: 0.03
+    depth: 6
+    exclude_features: *id001
+    extra_form: level
+    random_seed: 4
+- name: catboost_emiss_rel_s1
+  model: global
+  params:
+    backend: catboost
+    iterations: 400
+    learning_rate: 0.03
+    depth: 6
+    exclude_features: *id001
+    extra_form: rel
+    random_seed: 1
+- name: catboost_emiss_rel_s2
+  model: global
+  params:
+    backend: catboost
+    iterations: 400
+    learning_rate: 0.03
+    depth: 6
+    exclude_features: *id001
+    extra_form: rel
+    random_seed: 2
+- name: catboost_emiss_rel_s3
+  model: global
+  params:
+    backend: catboost
+    iterations: 400
+    learning_rate: 0.03
+    depth: 6
+    exclude_features: *id001
+    extra_form: rel
+    random_seed: 3
+- name: catboost_emiss_rel_s4
+  model: global
+  params:
+    backend: catboost
+    iterations: 400
+    learning_rate: 0.03
+    depth: 6
+    exclude_features: *id001
+    extra_form: rel
+    random_seed: 4
+- name: catboost_emiss_mom3_s1
+  model: global
+  params:
+    backend: catboost
+    iterations: 400
+    learning_rate: 0.03
+    depth: 6
+    exclude_features: *id001
+    extra_form: mom3
+    random_seed: 1
+- name: catboost_emiss_mom3_s2
+  model: global
+  params:
+    backend: catboost
+    iterations: 400
+    learning_rate: 0.03
+    depth: 6
+    exclude_features: *id001
+    extra_form: mom3
+    random_seed: 2
+- name: catboost_emiss_mom3_s3
+  model: global
+  params:
+    backend: catboost
+    iterations: 400
+    learning_rate: 0.03
+    depth: 6
+    exclude_features: *id001
+    extra_form: mom3
+    random_seed: 3
+- name: catboost_emiss_mom3_s4
+  model: global
+  params:
+    backend: catboost
+    iterations: 400
+    learning_rate: 0.03
+    depth: 6
+    exclude_features: *id001
+    extra_form: mom3
+    random_seed: 4

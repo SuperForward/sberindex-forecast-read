@@ -1,0 +1,36 @@
+# Базовая конфигурация backtest прогноза расходов по МО.
+seed: 42
+
+data:
+  panel: data/processed/spending_mo.parquet   # собирается scripts/build_mo_map.py
+  categories: [all]          # all, food, health, horeca, transport, marketplaces
+  full_history_only: true    # только МО с полными 24 месяцами
+
+backtest:
+  horizon: 3                 # месяцев вперёд
+  n_windows: 7               # месячные окна 2024-03…09, как в models.yaml –
+  step: 1                    # сравнение «к Prophet» идёт на одних точках
+  min_train: 12              # минимум месяцев истории, иначе нет сезонности г/г
+  n_jobs: -1
+
+models:
+  - name: naive
+    model: naive
+  - name: seasonal_naive
+    model: seasonal_naive
+  - name: seasonal_naive_drift
+    model: seasonal_naive_drift
+    params: {k: 3}
+  # Prophet – эталонная модель для сравнения. По умолчанию при истории
+  # короче 2 лет годовая сезонность отключается ("auto").
+  - name: prophet_default
+    model: prophet
+    params: {yearly_seasonality: auto}
+  # Prophet с принудительной годовой сезонностью малого порядка.
+  - name: prophet_yearly3
+    model: prophet
+    params: {yearly_seasonality: 3, seasonality_mode: multiplicative}
+
+cpd:
+  methods: [pelt]
+  tolerance: 2               # допуск совпадения точки, в периодах

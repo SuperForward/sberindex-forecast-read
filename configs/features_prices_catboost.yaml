@@ -1,0 +1,116 @@
+# Вклад цен на топливо и ЖКУ (ЕМИСС 31448) для CatBoost – главной модели:
+# признаки основной модели (cur) и они же плюс 7 рядов цен г/г (prices), по 4 seed.
+#
+# Запуск: python -m scripts.run_backtest --config features_prices_catboost
+seed: 42
+data:
+  panel: data/processed/spending_mo.parquet
+  categories:
+  - all
+  full_history_only: true
+backtest:
+  horizon: 3
+  n_windows: 7
+  step: 1
+  min_train: 12
+  n_jobs: -1
+models:
+- name: baseline
+  model: seasonal_naive_drift
+  params:
+    k: 3
+- name: catboost_cur_s1
+  model: global
+  params:
+    backend: catboost
+    exclude_features: &id001
+    - target_month
+    - basket_cost_yoy
+    - housing_price_m2_primary_yoy
+    - housing_price_m2_secondary_yoy
+    - loans_corporate_yoy
+    - loans_sme_issued_yoy
+    - loans_sme_debt_yoy
+    - loans_sme_overdue_yoy
+    - prices_fuel_utilities_ai92_yoy
+    - prices_fuel_utilities_diesel_yoy
+    - prices_fuel_utilities_power_yoy
+    - prices_fuel_utilities_water_cold_yoy
+    - prices_fuel_utilities_water_hot_yoy
+    - prices_fuel_utilities_heating_yoy
+    - prices_fuel_utilities_gas_yoy
+    iterations: 400
+    learning_rate: 0.03
+    depth: 6
+    random_seed: 1
+- name: catboost_cur_s2
+  model: global
+  params:
+    backend: catboost
+    exclude_features: *id001
+    iterations: 400
+    learning_rate: 0.03
+    depth: 6
+    random_seed: 2
+- name: catboost_cur_s3
+  model: global
+  params:
+    backend: catboost
+    exclude_features: *id001
+    iterations: 400
+    learning_rate: 0.03
+    depth: 6
+    random_seed: 3
+- name: catboost_cur_s4
+  model: global
+  params:
+    backend: catboost
+    exclude_features: *id001
+    iterations: 400
+    learning_rate: 0.03
+    depth: 6
+    random_seed: 4
+- name: catboost_prices_s1
+  model: global
+  params:
+    backend: catboost
+    exclude_features: &id002
+    - target_month
+    - basket_cost_yoy
+    - housing_price_m2_primary_yoy
+    - housing_price_m2_secondary_yoy
+    - loans_corporate_yoy
+    - loans_sme_issued_yoy
+    - loans_sme_debt_yoy
+    - loans_sme_overdue_yoy
+    iterations: 400
+    learning_rate: 0.03
+    depth: 6
+    random_seed: 1
+- name: catboost_prices_s2
+  model: global
+  params:
+    backend: catboost
+    exclude_features: *id002
+    iterations: 400
+    learning_rate: 0.03
+    depth: 6
+    random_seed: 2
+- name: catboost_prices_s3
+  model: global
+  params:
+    backend: catboost
+    exclude_features: *id002
+    iterations: 400
+    learning_rate: 0.03
+    depth: 6
+    random_seed: 3
+- name: catboost_prices_s4
+  model: global
+  params:
+    backend: catboost
+    exclude_features: *id002
+    iterations: 400
+    learning_rate: 0.03
+    depth: 6
+    random_seed: 4

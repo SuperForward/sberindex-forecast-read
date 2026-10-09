@@ -1,0 +1,250 @@
+# Конвейер пересчёта: какие шаги есть, от чего зависят и что производят.
+#
+#   python -m worker run            – пересчитать то, что устарело
+#   python -m worker run --force    – пересчитать всё (кроме heavy)
+#   python -m worker run --heavy    – включая тяжёлые шаги (горизонты, ~35 мин)
+#   python -m worker loop           – работать по расписанию (раздел schedule)
+#   python -m worker status         – последние запуски и состояние шагов
+#
+# Шаг устаревает, если изменились его входные файлы, код скрипта или
+# конфиги (сравниваются размер и время изменения), либо нет какого-то
+# выхода. Пути – относительно корня проекта, поэтому работают на любом ПК.
+#
+# group:
+#   fetch  – скачивание из интернета; идёт только по расписанию (fetch_every_h)
+#            или с --fetch, и его сбой не останавливает пересчёт.
+#   data   – сборка данных; после неё проверка качества (quality).
+#   model  – модели и детекторы.
+#   heavy  – долгие исследования: только с --heavy или раз в heavy_every_d дней.
+
+steps:
+  # --- скачивание (есть устойчивые адреса) --------------------------------
+  - name: fetch_external
+    group: fetch
+    every_h: 6                   # курсы ЦБ; погода внутри шага – раз в 7 дней
+    module: scripts.download_external
+    args: [--only, "cbr,weather"]
+    code: [scripts/download_external.py, src/data/external.py]
+    makes: [data/raw/external/cbr_usd.xml]
+
+  - name: fetch_pmo
+    group: fetch
+    every_h: 720                 # годовые данные – проверять раз в месяц, а не каждые сутки
+    module: scripts.download_pmo
+    code: [scripts/download_pmo.py, src/data/pmo.py, configs/pmo_indicators.yaml]
+    makes: [data/raw/rosstat/pmo]
+
+  - name: fetch_vacancies
+    group: fetch
+    every_h: 168                 # срез вакансий «Работы России» раз в неделю (~2 ГБ потоком)
+    module: scripts.download_extra
+    args: [--only, trudvsem]
+    code: [scripts/download_extra.py, configs/extra_sources.yaml]
+    makes: [data/raw/trudvsem]
+
+  - name: fetch_regional
+    group: fetch
+    every_h: 720                 # ЕМИСС, ЦБ, ФНС 1-НМ: помесячные и квартальные ряды
+    module: scripts.download_extra
+    args: [--only, "emiss,cbr,fns"]
+    code: [scripts/download_extra.py, configs/extra_sources.yaml, src/data/emiss.py]
+    makes: [data/raw/cbr/deposits_households.xlsx, data/raw/fns]
+
+  - name: fetch_news
+    group: fetch
+    every_h: 6                   # новые дни архива Lenta.ru (последние 3 дня перекачиваются)
+    module: scripts.download_news
+    code: [scripts/download_news.py, src/news/lenta.py, configs/news.yaml]
+    makes: [data/raw/news]
+
+  - name: fetch_gdelt
+    group: fetch
+    every_h: 24                  # события GDELT (поток translation) по России, докачка новых 15-минуток
+    module: scripts.download_gdelt
+    code: [scripts/download_gdelt.py, src/news/gdelt.py, configs/news.yaml]
+    makes: [data/raw/gdelt]
+
+  - name: fetch_acts
+    group: fetch
+    every_h: 168                 # официальные акты о ЧС (publication.pravo.gov.ru), раз в неделю
+    module: scripts.download_acts
+    code: [scripts/download_acts.py]
+    makes: [data/raw/acts]
+
+  # --- сборка данных ------------------------------------------------------
+  - name: build_mo_map
+    group: data
+    module: scripts.build_mo_map
+    needs: ["data/raw/potrebitelskie-*.csv", data/raw/sberindex, data/raw/oktmo, data/raw/hackathon,
+            "data/raw/rosstat/BUL_MO_*.xlsx", reference/sberindex_mo_order.hashes.txt]
+    code: [scripts/build_mo_map.py, src/data/sberindex.py, src/data/oktmo.py,
+           src/data/mo_match.py, src/data/rosstat.py]
+    makes: [data/interim/mo_oktmo_map.csv, data/processed/spending_mo.parquet,
+            data/processed/mo_population.parquet]
+
+  - name: build_covariates
+    group: data
+    module: scripts.build_covariates
+    needs: [data/raw/rosstat, data/raw/sberindex, data/raw/emiss, data/raw/external,
+            data/raw/calendar, data/processed/spending_mo.parquet]
+    code: [scripts/build_covariates.py, src/data/rosstat.py, src/data/external.py,
+           src/data/calendar.py, src/data/emiss.py]
+    makes: [data/processed/covariates_region_monthly.parquet,
+            data/processed/covariates_national_monthly.parquet,
+            data/processed/mo_cov_region.parquet, data/processed/calendar_monthly.parquet]
+
+  - name: build_extra
+    group: data
+    module: scripts.build_extra
+    needs: [data/raw/emiss, data/raw/cbr, data/raw/fns, data/raw/trudvsem]
+    code: [scripts/build_extra.py, scripts/build_covariates.py, configs/extra_sources.yaml, src/data/emiss.py]
+    makes: [data/processed/covariates_region_extra.parquet, data/processed/vacancies_region.parquet]
+
+  - name: build_news
+    group: data
+    module: scripts.build_news
+    needs: [data/raw/news, data/processed/spending_mo.parquet]
+    # веса – в code, а не в needs: без них шаг идёт на словарях, а не пропускается
+    code: [scripts/build_news.py, src/news, configs/news.yaml, reference/news_title_labels.csv,
+           data/models/multilingual-e5-base]
+    makes: [data/processed/news_matches.parquet, data/processed/news_mo_monthly.parquet,
+            reports/news/model_cv.md]
+
+  - name: build_gdelt
+    group: data
+    module: scripts.build_gdelt
+    needs: [data/raw/gdelt, data/processed/spending_mo.parquet]
+    code: [scripts/build_gdelt.py, src/news/gdelt.py, src/news/gazetteer.py]
+    makes: [data/processed/gdelt_mo_monthly.parquet, data/processed/gdelt_matches.parquet]
+
+  - name: build_acts
+    group: data
+    module: scripts.build_acts
+    needs: [data/raw/acts, data/processed/spending_mo.parquet]
+    code: [scripts/build_acts.py, src/news/acts.py, src/news/gazetteer.py]
+    makes: [data/processed/acts.parquet, data/processed/acts_region_monthly.parquet]
+
+  - name: build_mo_features
+    group: data
+    module: scripts.build_mo_features
+    needs: [data/raw/rosstat/pmo, data/processed/spending_mo.parquet]
+    code: [scripts/build_mo_features.py, src/data/pmo.py, configs/pmo_indicators.yaml]
+    makes: [data/processed/mo_annual.parquet]
+
+  - name: shock_candidates
+    group: data
+    module: scripts.find_shock_candidates
+    needs: [data/processed/mo_annual.parquet, data/processed/spending_mo.parquet,
+            data/interim/mo_oktmo_map.csv]
+    code: [scripts/find_shock_candidates.py]
+    makes: [reports/shock_candidates.csv]
+
+  - name: validate_sources
+    group: data
+    module: scripts.validate_sources
+    needs: [data/raw/sberindex, data/raw/rosstat, data/processed/spending_mo.parquet,
+            data/processed/mo_population.parquet]
+    code: [scripts/validate_sources.py]
+    makes: [reports/validation.md]
+
+  - name: audit_data
+    group: data
+    module: scripts.audit_data
+    needs: [data/raw, data/processed]
+    code: [scripts/audit_data.py]
+    makes: [reports/data_audit.md, data/raw/MANIFEST.csv]
+
+  # --- модели -------------------------------------------------------------
+  - name: backtest_default
+    group: model
+    module: scripts.run_backtest
+    args: [--config, default]
+    needs: [data/processed/spending_mo.parquet]
+    code: [scripts/run_backtest.py, src/forecast, src/eval, configs/default.yaml]
+    makes: [reports/backtest/default/predictions.parquet, reports/backtest/default/metrics.md]
+
+  - name: backtest_models
+    group: model
+    module: scripts.run_backtest
+    args: [--config, models]
+    # только файлы, из которых строятся признаки (src/features): новые таблицы
+    # в data/processed не должны без нужды запускать пересчёт моделей
+    needs: [data/processed/spending_mo.parquet, data/processed/mo_population.parquet,
+            data/processed/covariates_region_monthly.parquet, data/processed/covariates_national_monthly.parquet,
+            data/processed/mo_cov_region.parquet, data/processed/mo_annual.parquet, data/interim/mo_oktmo_map.csv,
+            data/processed/covariates_region_extra.parquet,
+            data/raw/calendar, "data/raw/external/cbr_*.xml"]
+    code: [scripts/run_backtest.py, src/forecast, src/features, src/eval, configs/models.yaml,
+           configs/foundation.yaml]
+    makes: [reports/backtest/models/predictions.parquet, reports/backtest/models/metrics.md,
+            reports/backtest/models/forecast.parquet, reports/backtest/models/ensemble_members.csv]
+
+  - name: cpd
+    group: model
+    module: scripts.run_cpd
+    args: [--config, cpd]
+    needs: [data/processed/spending_mo.parquet]
+    code: [scripts/run_cpd.py, src/cpd, configs/cpd.yaml, configs/foundation.yaml]
+    makes: [reports/cpd/comparison.csv, reports/cpd/alarms.parquet]
+
+  # --- тяжёлые исследования ----------------------------------------------
+  - name: horizons
+    group: heavy
+    module: scripts.run_horizons
+    args: [--config, horizons]
+    needs: [data/processed/spending_mo.parquet, data/processed/mo_population.parquet,
+            data/processed/covariates_region_monthly.parquet, data/processed/covariates_national_monthly.parquet,
+            data/processed/mo_cov_region.parquet, data/processed/mo_annual.parquet, data/interim/mo_oktmo_map.csv,
+            data/processed/covariates_region_extra.parquet,
+            data/raw/calendar, "data/raw/external/cbr_*.xml",
+            "data/raw/sberindex/consumer-spending-growth_*.csv"]
+    code: [scripts/run_horizons.py, src/forecast, src/features, configs/horizons.yaml,
+           configs/models.yaml, configs/default.yaml, configs/foundation.yaml]
+    makes: [reports/horizons/metrics.csv, reports/horizons/predictions.parquet]
+
+  - name: acts_eval
+    group: model                 # без переобучения: готовые прогнозы и сигналы детектора
+    module: scripts.run_acts_eval
+    needs: [data/processed/acts.parquet, data/processed/acts_region_monthly.parquet,
+            reports/cpd/alarms.parquet, reports/backtest/models/predictions.parquet]
+    code: [scripts/run_acts_eval.py, configs/cpd.yaml]
+    makes: [reports/news/acts_summary.md, reports/news/acts_event_study.csv, reports/news/acts_two_key.csv]
+
+  - name: news_eval
+    group: heavy                 # переобучает модели с признаками новостей
+    module: scripts.run_news_eval
+    needs: [data/processed/news_matches.parquet, data/processed/news_mo_monthly.parquet,
+            data/processed/gdelt_mo_monthly.parquet, reports/cpd/alarms.parquet]
+    code: [scripts/run_news_eval.py, src/forecast/global_model.py, configs/cpd.yaml, configs/models.yaml]
+    makes: [reports/news/summary.md, reports/news/forecast.csv]
+
+# Проверка качества после шагов data. Не прошла – результаты откатываются
+# к последним хорошим, в приложение ничего не публикуется.
+quality:
+  min_mo: 1800                 # МО в панели не меньше
+  max_mo_drop: 0.05            # и не меньше чем на 5% относительно прошлой публикации
+  max_duplicates: 0            # дубли (МО, дата, категория)
+  max_jump_share: 0.001        # доля скачков месяц к месяцу больше 100%
+  # модели: MAE на тех же точках, что в прошлой публикации, выросла не больше
+  # чем на 25% – иначе откат (поломка признаков или бэкенда); --force пропускает
+  max_model_mae_rise: 0.25
+  min_model_points: 1000
+
+schedule:
+  check_every_min: 60          # как часто воркер просыпается
+  fetch_every_h: 6             # проверка источников не чаще; у каждого шага свой интервал (every_h)
+  heavy_every_d: 7             # тяжёлые шаги не чаще
+  retry_after_fail_min: 60     # после неудачи (нет сети, упал шаг) – не раньше
+  # Приложение само запускает воркер, если он не работает по расписанию:
+  # при старте (данные могли выйти, пока приложение было закрыто) и раз в
+  # минуту, пока открыто. Скачивание – по тем же правилам, что и у воркера.
+  app_auto_update: true
+  app_auto_recalc: true        # пересчитать, если изменились исходники или код
+
+# Снимок готовых данных для тех, кто клонировал репозиторий.
+# url – адрес архива. Пусто – берётся последний релиз репозитория на GitHub
+# (из git remote origin): .../releases/latest/download/sberindex-data.zip.
+# Нет ни того, ни другого – данные собираются из исходников (worker run --force).
+snapshot:
+  url: ""
+  include: [data/processed, data/interim, data/sberindex.duckdb, data/raw/MANIFEST.csv, reports]

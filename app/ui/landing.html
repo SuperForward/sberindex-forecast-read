@@ -1,0 +1,1115 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<script>/* тема как в терминале (выбор хранится там же), до отрисовки – без вспышки */try{if(localStorage.getItem('theme')==='dark'&&!/[?&]print/.test(location.search)){const d=document.documentElement;d.dataset.theme='dark';d.style.colorScheme='dark';}}catch(e){}
+/* в настольном приложении раскладка меню с кнопками окна – сразу, а не после подключения к Python */
+if(typeof qt!=='undefined'&&qt.webChannelTransport)document.documentElement.classList.add('desktop');</script>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SberIndex: Forecast</title>
+<link rel="icon" href="../assets/app.svg">
+<link rel="preload" href="../assets/fonts/inter-cyrillic-opsz-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="../assets/fonts/inter-latin-opsz-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="../assets/fonts/fonts.css">
+<link rel="stylesheet" href="../assets/ctl.css">
+<script src="../assets/ctl.js" defer></script>
+<style>
+:root{
+  --bg:#f3f4f2; --paper:#ffffff; --ink:#15191e; --ink2:#434b55; --muted:#6b7480; --line:#e2e5e1;
+  --accent:#21a038; --accent-soft:#e6f4e9; --bad:#d6334a; --info:#2f7fd8; --warn:#c98a00; --violet:#7a64e8;
+  --font:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,Roboto,sans-serif;
+  --mono:ui-monospace,"Cascadia Mono",Consolas,monospace;
+  --shadow:0 1px 2px rgba(21,25,30,.04),0 2px 6px rgba(21,25,30,.05),0 8px 24px -8px rgba(21,25,30,.08);
+}
+/* всегда светлый при любой теме ОС; тёмный – только явно */
+:root[data-theme="dark"]{
+  --bg:#0b0d10; --paper:#12161b; --ink:#e6eaef; --ink2:#b6bec8; --muted:#8a93a0; --line:#232a33;
+  --accent-soft:#11281a; --bad:#f25d72; --info:#5aa2f2; --warn:#e2a93a; --violet:#9c8cf5;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);font-size:16px;line-height:1.5;
+  -webkit-font-smoothing:antialiased}
+a{color:var(--accent)}
+.num{font-variant-numeric:tabular-nums lining-nums}
+nav.top{position:sticky;top:0;z-index:10;background:color-mix(in srgb,var(--bg) 88%,transparent);
+  backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+nav.top .in{max-width:1280px;margin:0 auto;padding:10px 16px;display:flex;gap:14px;align-items:center;overflow-x:auto;white-space:nowrap;scrollbar-width:none}
+nav.top .in::-webkit-scrollbar{display:none}
+nav.top b{font-weight:700;margin-right:6px}
+nav.top .brand{display:inline-flex;align-items:center;gap:8px}
+nav.top .brand img{width:22px;height:22px}
+nav.top a{color:var(--muted);text-decoration:none;font-size:14px}
+nav.top a:hover{color:var(--ink)}
+nav.top .sp{flex:1}
+nav.top .btn{border:1px solid var(--line);border-radius:6px;padding:4px 10px;color:var(--ink)}
+section.slide{max-width:1180px;margin:0 auto;padding:64px 16px 40px}
+.kicker{color:var(--muted);font-weight:600;font-size:15px;margin:0 0 6px}
+h1{font-size:clamp(30px,4.6vw,52px);line-height:1.08;margin:0 0 18px;letter-spacing:-.01em}
+h2{font-size:clamp(24px,3vw,34px);line-height:1.15;margin:0 0 12px;letter-spacing:-.005em}
+h3{font-size:17px;margin:0 0 6px}
+p.lead{font-size:clamp(17px,1.8vw,20px);color:var(--ink2);max-width:860px;margin:0 0 22px}
+p{margin:0 0 12px;color:var(--ink2)}
+.grid{display:grid;gap:16px}
+.g2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.g3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.g4{grid-template-columns:repeat(4,minmax(0,1fr))}
+.g-chart{grid-template-columns:minmax(0,1.6fr) minmax(0,1fr)}
+@media (max-width:860px){.card{min-width:0;overflow-x:auto}.g2,.g3,.g-chart{grid-template-columns:minmax(0,1fr)}.g4{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.card{background:var(--paper);border:1px solid rgba(21,25,30,.06);border-radius:10px;padding:20px;box-shadow:var(--shadow)}
+.stat .v{font-size:clamp(26px,3.2vw,38px);font-weight:700;letter-spacing:-.01em;line-height:1.1}
+.stat .l{color:var(--muted);font-size:14px;margin-top:4px}
+.stat.hl .v{color:var(--accent)}
+.chart{width:100%;height:380px}
+.chart.sm{height:300px}
+.note{font-size:13px;color:var(--muted);margin-top:8px}
+ul.clean{margin:0;padding-left:18px;color:var(--ink2)} ul.clean li{margin:0 0 6px}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{padding:7px 8px;border-bottom:1px solid var(--line);text-align:right}
+th:first-child,td:first-child{text-align:left}
+th{color:var(--muted);font-weight:600;font-size:13px;border-bottom-color:#c9cfc8}
+tr.best td{font-weight:700;color:var(--accent)}
+tr.ref td{color:var(--bad)}
+.tag{display:inline-block;font-size:11px;padding:1px 6px;border-radius:4px;background:var(--line);color:var(--ink2);margin-left:4px;vertical-align:1px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;margin-bottom:10px}
+.seg button{border:0;background:var(--paper);color:var(--muted);padding:6px 12px;font:inherit;font-size:14px;cursor:pointer}
+.seg button.on{background:var(--accent);color:#fff}
+select{font:inherit;font-size:14px;padding:6px 8px;border-radius:8px;border:1px solid var(--line);background:var(--paper);color:var(--ink);max-width:100%}
+code,pre{font-family:var(--mono);font-size:13px}
+pre{background:var(--paper);border:1px solid rgba(21,25,30,.06);border-radius:8px;box-shadow:var(--shadow);padding:12px;overflow-x:auto;margin:0 0 10px}
+.arch{width:100%;height:auto}
+.arch text{font-family:var(--font);fill:var(--ink)}
+.arch .box{fill:var(--paper);stroke:var(--line);stroke-width:1.5}
+.arch .box.acc{stroke:var(--accent)}
+.arch .sub{fill:var(--muted);font-size:12px}
+.arch .ttl{font-weight:700;font-size:14px}
+.arch .arr{stroke:var(--muted);stroke-width:1.5;fill:none;marker-end:url(#ah)}
+.pill{display:inline-block;padding:2px 8px;border-radius:5px;font-size:13px;font-weight:600}
+.pill.ok{background:var(--accent-soft);color:var(--accent)}
+.pill.no{background:color-mix(in srgb,var(--bad) 14%,transparent);color:var(--bad)}
+footer{max-width:1180px;margin:0 auto;padding:24px 16px 48px;color:var(--muted);font-size:13px}
+.err{color:var(--bad)}
+.wordmark{display:block;width:300px;max-width:70%;height:auto;margin:0 0 28px}
+html.print .wordmark{width:260px;margin-bottom:18px}
+/* логотип в цвет темы: тёмный текст на светлом фоне, светлый на тёмном */
+.wm-dark{display:none!important}
+:root[data-theme="dark"]:not(.print) .wm-light{display:none!important}
+:root[data-theme="dark"]:not(.print) .wm-dark{display:block!important}
+/* подпись под графиком */
+.howto{margin:12px 0 0;padding-top:10px;border-top:1px dashed var(--line);font-size:14px;color:var(--muted);line-height:1.5}
+.howto b{color:var(--ink)}
+
+/* Оформление: плотные карточки на светлом фоне с одним зелёным светом из угла.
+   Стекло – только у плавающих элементов (верхнее меню, подсказки графиков):
+   там под ним действительно проходит содержимое страницы. */
+:root{
+  --font:"Inter",-apple-system,"Segoe UI",system-ui,sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,"Cascadia Mono",Consolas,monospace;
+  --bg:#f4f4f0; --line:rgba(21,25,30,.10); --edge:rgba(21,25,30,.09);
+  --r-panel:14px; --r-card:10px; --r-ctl:8px;
+  --glow:radial-gradient(80vmax 60vmax at -10% -14%,rgba(33,160,56,.15),transparent 60%);
+  --glass:rgba(250,250,247,.68); --glass-edge:rgba(255,255,255,.7);
+  --glass-shadow:inset 0 1px 0 rgba(255,255,255,.85),0 1px 2px rgba(21,25,30,.06),0 10px 30px -12px rgba(21,25,30,.24);
+  --glass-blur:saturate(160%) blur(18px);
+}
+:root[data-theme="dark"]{
+  --bg:#0c0e10; --line:rgba(255,255,255,.09); --edge:rgba(255,255,255,.08);
+  --glow:radial-gradient(80vmax 60vmax at -10% -14%,rgba(33,160,56,.13),transparent 60%);
+  --glass:rgba(22,26,31,.64); --glass-edge:rgba(255,255,255,.09);
+  --glass-shadow:inset 0 1px 0 rgba(255,255,255,.07),0 10px 30px -12px rgba(0,0,0,.7);
+}
+body{counter-reset:sec}
+body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;background:var(--glow)}
+.card{background:var(--paper);border:1px solid var(--edge);border-radius:var(--r-card);box-shadow:none;padding:20px}
+pre{background:var(--paper);border:1px solid var(--edge);border-radius:var(--r-ctl);box-shadow:none}
+td.num,th.num{font-family:var(--font);font-variant-numeric:tabular-nums}
+body{font-feature-settings:"cv05"} .num,td.num,.v{font-variant-numeric:tabular-nums}
+td.num{font-size:13px}
+nav.top{background:transparent;backdrop-filter:none;border:0;padding:10px 12px 0}
+nav.top .in{max-width:1256px;border-radius:var(--r-panel);padding:6px 6px 6px 14px;gap:2px;background:var(--glass);
+  border:1px solid var(--glass-edge);box-shadow:var(--glass-shadow);-webkit-backdrop-filter:var(--glass-blur);backdrop-filter:var(--glass-blur)}
+nav.top b{margin-right:10px}
+nav.top a{padding:4px 5px;border-radius:6px;font-size:13px}
+nav.top a:hover{background:rgba(21,25,30,.05)}
+:root[data-theme="dark"] nav.top a:hover{background:rgba(255,255,255,.06)}
+nav.top .btn{border:0;border-radius:var(--r-ctl);padding:6px 12px;background:var(--ink);color:var(--bg);font-weight:600}
+nav.top .btn:hover{background:var(--accent);color:#fff}
+/* все пункты не влезают: название сайта остаётся значком, кнопка терминала прижата справа */
+nav.top .btn{position:sticky;right:0;margin-left:6px}
+@media (max-width:1500px){nav.top .brand .bt{display:none}}
+/* кнопки окна – только в настольном приложении (рамка окна своя) */
+nav.top .wctrl{display:none;gap:2px;margin-left:6px;position:sticky;right:0}
+html.desktop nav.top .wctrl{display:flex}
+nav.top .wctrl button{display:grid;place-items:center;width:34px;height:30px;padding:0;border:0;border-radius:var(--r-ctl,6px);background:transparent;color:var(--muted);cursor:pointer}
+nav.top .wctrl button:hover{background:rgba(21,25,30,.07);color:var(--ink)}
+nav.top .wctrl button.close:hover{background:#e81123;color:#fff}
+nav.top .wctrl svg{width:11px;height:11px;stroke:currentColor;fill:none;stroke-width:1.4;stroke-linecap:round}
+html.desktop nav.top .in{max-width:none}
+html.desktop nav.top .btn{right:112px}
+.seg{border:1px solid var(--edge);border-radius:999px;padding:3px;gap:2px;background:var(--paper)}
+.seg button{background:transparent;border-radius:999px;padding:5px 12px}
+.seg button:hover{color:var(--ink)}
+.seg button.on{background:var(--ink);color:var(--bg)}
+select{border-radius:var(--r-ctl);border:1px solid var(--edge);background:var(--paper);padding:6px 10px}
+.tag,.pill{border-radius:4px}
+.arch .box{fill:var(--paper);stroke:var(--edge)} .arch .box.acc{stroke:var(--accent)}
+/* разделы – как главы отчёта: номер, линейка, крупный заголовок */
+section.slide:not(#title){counter-increment:sec;border-top:1px solid var(--line);margin-top:24px}
+.kicker{font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:10px}
+section.slide:not(#title) .kicker::before{content:counter(sec,decimal-leading-zero) " / ";color:var(--accent)}
+h2{font-size:clamp(26px,3.4vw,40px);letter-spacing:-.02em;max-width:28ch;margin-bottom:18px}
+h1{letter-spacing:-.025em;max-width:30ch}
+/* первый экран: одна главная цифра и график, остальное – строкой */
+.hero{display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);gap:40px;align-items:end;margin:8px 0 18px}
+.big{font-size:clamp(84px,11vw,152px);font-weight:700;letter-spacing:-.03em;font-variant-numeric:normal;line-height:.88;color:var(--accent)}
+.hero-cap{font-size:clamp(18px,1.8vw,22px);color:var(--ink);font-weight:600;margin:12px 0 10px}
+.hero .lead{font-size:16px;margin:0}
+.hero .chart{height:230px}
+.facts{font-size:15px;color:var(--ink2);margin:0 0 4px}
+.facts b{color:var(--ink);font-weight:600}
+.facts .sep{color:var(--line);margin:0 10px}
+@media (max-width:860px){.hero{grid-template-columns:minmax(0,1fr);gap:20px}}
+/* полоса показателей вместо ряда одинаковых карточек */
+.strip{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));background:var(--paper);border:1px solid var(--edge);border-radius:var(--r-card)}
+.strip .cell{padding:16px 20px;border-left:1px solid var(--line)}
+.strip .cell:first-child{border-left:0}
+.cell .v{font-size:clamp(22px,2.4vw,30px);font-weight:600;letter-spacing:-.02em;line-height:1.15}
+.cell .l{color:var(--muted);font-size:14px;margin-top:4px}
+.cell.hl .v{color:var(--accent)}
+@media (max-width:860px){.strip{grid-template-columns:1fr 1fr}.strip .cell:nth-child(3){border-left:0}
+  .strip .cell:nth-child(n+3){border-top:1px solid var(--line)}}
+@media (prefers-reduced-transparency:reduce){nav.top .in{background:var(--paper);-webkit-backdrop-filter:none;backdrop-filter:none}}
+
+/* Глубина: три уровня. Фон (ниже всего) → карточки (приподняты) → плавающие
+   меню и подсказки (выше всего). Пояснения и код – «утоплены» в карточку. */
+:root{
+  --muted:#5f6873;
+  --e1:inset 0 1px 0 rgba(255,255,255,.9),0 1px 2px rgba(21,25,30,.05),0 6px 16px -8px rgba(21,25,30,.14);
+  --e2:inset 0 1px 0 rgba(255,255,255,.9),0 2px 4px rgba(21,25,30,.05),0 22px 44px -16px rgba(21,25,30,.26);
+  --well:rgba(21,25,30,.035); --well-in:inset 0 1px 2px rgba(21,25,30,.07);
+  --page:linear-gradient(180deg,#f7f7f3 0,#efefea 100%);
+}
+:root[data-theme="dark"]{
+  --paper:#14181e;
+  --e1:inset 0 1px 0 rgba(255,255,255,.05),0 1px 2px rgba(0,0,0,.45),0 8px 20px -10px rgba(0,0,0,.65);
+  --e2:inset 0 1px 0 rgba(255,255,255,.06),0 2px 4px rgba(0,0,0,.4),0 26px 50px -18px rgba(0,0,0,.8);
+  --well:rgba(255,255,255,.035); --well-in:inset 0 1px 2px rgba(0,0,0,.45);
+  --page:linear-gradient(180deg,#0e1013 0,#090a0c 100%);
+}
+html{background:var(--page) fixed}
+body{background:transparent}
+/* зелёный свет чуть отстаёт при прокрутке – фон ощущается дальше карточек */
+body::before{inset:-20vh 0;transform:translate3d(0,calc(var(--sy,0) * -.12px),0);will-change:transform}
+.card,.strip{box-shadow:var(--e1)}
+.hero .card{box-shadow:var(--e2)}
+nav.top .in{transition:box-shadow .25s}
+nav.top.lifted .in{box-shadow:var(--glass-shadow),0 18px 40px -18px rgba(21,25,30,.35)}
+:root[data-theme="dark"] nav.top.lifted .in{box-shadow:var(--glass-shadow),0 18px 40px -18px rgba(0,0,0,.9)}
+.steps .card h3{margin:0 0 6px} .steps .card p{margin:0;color:var(--ink2);line-height:1.5}
+ol.walk{margin:0 0 14px;padding-left:20px;color:var(--ink2);line-height:1.55} ol.walk li{margin:0 0 4px} ol.walk b{color:var(--ink)}
+.card .howto{margin-top:12px;padding:0;border:0;background:none;box-shadow:none;color:var(--muted);font-size:13.5px;line-height:1.5}
+pre{background:var(--well);box-shadow:var(--well-in);border-color:transparent}
+.seg{background:var(--well);box-shadow:var(--well-in);border-color:transparent}
+.seg button.on{background:var(--paper);color:var(--ink);font-weight:600;box-shadow:var(--e1)}
+select{box-shadow:var(--e1)}
+.arch .box{filter:drop-shadow(0 6px 10px rgba(21,25,30,.08))}
+:root[data-theme="dark"] .arch .box{filter:drop-shadow(0 6px 12px rgba(0,0,0,.5))}
+/* тени заметнее: короткая контактная + длинная мягкая; фон темнее бумаги */
+:root{
+  --e1:inset 0 1px 0 rgba(255,255,255,.95),0 1px 2px rgba(21,25,30,.07),0 4px 10px -3px rgba(21,25,30,.08),0 18px 36px -14px rgba(21,25,30,.24);
+  --e2:inset 0 1px 0 rgba(255,255,255,.95),0 2px 4px rgba(21,25,30,.07),0 12px 24px -8px rgba(21,25,30,.14),0 40px 70px -26px rgba(21,25,30,.40);
+  --well-in:inset 0 1px 3px rgba(21,25,30,.10),inset 0 0 0 1px rgba(21,25,30,.04);
+  --page:linear-gradient(180deg,#f2f2ed 0,#e8e8e2 100%);
+}
+:root[data-theme="dark"]{
+  --e1:inset 0 1px 0 rgba(255,255,255,.06),0 1px 2px rgba(0,0,0,.5),0 4px 10px -3px rgba(0,0,0,.5),0 20px 40px -14px rgba(0,0,0,.85);
+  --e2:inset 0 1px 0 rgba(255,255,255,.07),0 2px 4px rgba(0,0,0,.45),0 14px 28px -8px rgba(0,0,0,.6),0 44px 80px -26px rgba(0,0,0,.95);
+  --well-in:inset 0 1px 3px rgba(0,0,0,.55),inset 0 0 0 1px rgba(255,255,255,.03);
+}
+body::before{display:none}
+.glow{position:fixed;inset:-20vh 0;z-index:-1;pointer-events:none;background:var(--glow);will-change:transform}
+html.print .glow{display:none}
+/* карточка под курсором приподнимается */
+@media (hover:hover) and (pointer:fine){
+  .card{transition:transform .3s cubic-bezier(.2,.7,.2,1),box-shadow .3s cubic-bezier(.2,.7,.2,1)}
+  .card:hover{transform:translateY(-3px);box-shadow:var(--e2)}
+}
+/* разделы проявляются при прокрутке: сдвиг через transform, раскладка не прыгает */
+html.anim .rv{opacity:0;transform:translateY(18px)}
+html.anim .rv.in{opacity:1;transform:none;transition:opacity .6s ease-out var(--d,0s),transform .7s cubic-bezier(.2,.7,.2,1) var(--d,0s)}
+/* место под текст первого экрана до загрузки данных */
+#tLead:empty{min-height:6em} #tStats:empty,#tNote:empty,#tChartNote:empty{min-height:1.5em}
+@media (min-width:861px){.hero-cap{min-height:3em}}
+@media (max-width:860px){.hero-cap{min-height:4.5em} #tLead:empty{min-height:9em}}
+.note{font-size:14px}
+/* словарь терминов */
+.terms{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0 28px;margin:0}
+.terms div{padding:12px 0;border-top:1px solid var(--line)}
+.terms dt{font-weight:600;color:var(--ink);margin:0 0 2px}
+.terms dd{margin:0;color:var(--ink2);font-size:15px;line-height:1.45}
+@media (max-width:860px){.terms{grid-template-columns:minmax(0,1fr)}}
+html.print .terms dd{font-size:13px} html.print .terms div{padding:7px 0}
+html.print .card,html.print .hero .card,html.print .strip,html.print .seg,html.print pre,html.print select{box-shadow:none}
+html.print .arch .box{filter:none}
+
+/* печать и PDF: каждый раздел – отдельная страница 16:9 (класс print ставит ?print или печать) */
+@page{size:1280px 720px;margin:0}
+@media print{html,body{background:#fff}}
+html.print{--bg:#fff;--paper:#fff;--ink:#15191e;--ink2:#434b55;--muted:#6b7480;--line:#e2e5e1;--accent-soft:#e6f4e9;
+  --bad:#d6334a;--info:#2f7fd8;--warn:#c98a00;--violet:#7a64e8}
+html.print,html.print body{background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact;width:1280px}
+html.print nav.top,html.print .noprint,html.print footer{display:none!important}
+html.print section.slide{width:1280px;height:720px;max-width:none;margin:0;padding:40px 56px 24px;overflow:hidden;break-after:page;page-break-after:always}
+html.print h1{font-size:46px} html.print h2{font-size:30px} html.print p.lead{font-size:18px;margin-bottom:16px}
+html.print .g2{grid-template-columns:1fr 1fr}html.print .g3{grid-template-columns:repeat(3,1fr)}
+html.print .g4{grid-template-columns:repeat(4,1fr)}html.print .g-chart{grid-template-columns:1.6fr 1fr}
+html.print .chart{height:410px}html.print .chart.sm{height:290px}
+html.print .howto{font-size:12px;margin-top:6px;padding-top:6px}
+html.print #title{display:flex;flex-direction:column;justify-content:center}
+html.print body::before{display:none}
+html.print .card,html.print pre,html.print .strip{background:#fff;border-color:#e2e5e1}
+html.print .arch .box{fill:#fff;stroke:#e2e5e1}
+html.print section.slide,html.print section.slide:not(#title){position:relative;border-top:0;margin-top:0}
+html.print section.slide:not(#title)::after{content:"SberIndex: Forecast · " counter(sec,decimal-leading-zero);position:absolute;right:56px;bottom:12px;
+  font:500 11px var(--font);color:var(--muted)}
+html.print .big{font-size:120px} html.print .hero{margin:4px 0 12px;grid-template-columns:.9fr 1.1fr;gap:40px} html.print .hero .chart{height:210px}
+/* PDF собирается в узком окне: сетки задаются явно, без медиазапросов по ширине */
+html.print .strip{grid-template-columns:repeat(4,1fr)} html.print .strip .cell{border-left:1px solid var(--line);border-top:0}
+html.print .strip .cell:first-child{border-left:0} html.print .terms{grid-template-columns:repeat(3,1fr)}
+html.print #news .strip .cell{padding:8px 16px} html.print #news .cell .v{font-size:22px} html.print #news .grid{margin-top:10px!important}
+html.print #cSide td,html.print #cSide th{padding:2px 6px} html.print #cSide .note,html.print #nFc .note{font-size:10px;line-height:1.3;margin-top:4px!important} html.print #nFc td,html.print #nFc th{padding:2px 5px} html.print #news table{font-size:11px} html.print #news th,html.print #news td{padding:2px 6px} html.print #news .card{padding:12px}
+html.print .card{padding:14px;box-shadow:none;border-color:#e2e5e1} html.print table{font-size:13px} html.print th,html.print td{padding:5px 6px}
+html.print p,html.print ul.clean{font-size:15px}
+.printonly{display:none}
+/* зеленоватая подложка: белые карточки парят над ней на мягких зелёных тенях */
+:root{
+  --bg:#e4ede6;
+  --page:linear-gradient(180deg,#e9f1eb 0,#dce7df 100%);
+  --e1:inset 0 1px 0 rgba(255,255,255,.95),0 1px 2px rgba(16,56,30,.08),0 5px 12px -3px rgba(16,56,30,.10),0 22px 40px -16px rgba(16,56,30,.26);
+  --e2:inset 0 1px 0 rgba(255,255,255,.95),0 2px 4px rgba(16,56,30,.08),0 14px 26px -8px rgba(16,56,30,.16),0 44px 72px -26px rgba(16,56,30,.42);
+}
+:root[data-theme="dark"]{--bg:#0b0d10;--page:linear-gradient(180deg,#0e1013 0,#090a0c 100%);
+  --e1:inset 0 1px 0 rgba(255,255,255,.06),0 1px 2px rgba(0,0,0,.5),0 4px 10px -3px rgba(0,0,0,.5),0 20px 40px -14px rgba(0,0,0,.85);
+  --e2:inset 0 1px 0 rgba(255,255,255,.07),0 2px 4px rgba(0,0,0,.45),0 14px 28px -8px rgba(0,0,0,.6),0 44px 80px -26px rgba(0,0,0,.95)}
+::-webkit-scrollbar{width:12px;height:12px}
+::-webkit-scrollbar-track,::-webkit-scrollbar-corner{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(21,60,35,.30);border:3px solid transparent;background-clip:padding-box;border-radius:8px;min-height:36px}
+::-webkit-scrollbar-thumb:hover{background:rgba(21,60,35,.50);border:3px solid transparent;background-clip:padding-box}
+:root[data-theme="dark"] ::-webkit-scrollbar-thumb{background:rgba(255,255,255,.22);border:3px solid transparent;background-clip:padding-box}
+:root[data-theme="dark"] ::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.40);border:3px solid transparent;background-clip:padding-box}
+nav.top .in::-webkit-scrollbar{display:none}
+html.print{--page:#fff}
+th::first-letter{text-transform:uppercase}
+.hero .big,.hero .hero-cap{opacity:0;transition:opacity .5s ease}
+.hero .big.ready,.hero .hero-cap.ready{opacity:1}
+html.print .hero .big,html.print .hero .hero-cap{opacity:1}
+/* показатели: отдельные плитки вместо одной ячейки с разделителями (в печати остаётся полоса) */
+html:not(.print) .strip{background:none;border:0;box-shadow:none;gap:14px}
+html:not(.print) .strip .cell,html:not(.print) .strip .cell:first-child{background:var(--paper);border:1px solid var(--edge);border-radius:var(--r-card);box-shadow:var(--e1);padding:18px 22px}
+@media (max-width:860px){html:not(.print) .strip .cell:nth-child(n+3){border-top:1px solid var(--edge)}}
+/* название – кнопка «в начало» */
+nav.top a.brand{font-weight:700;color:var(--ink);text-decoration:none;padding:5px 8px;margin-left:-8px;border-radius:8px;cursor:pointer;transition:background-color .15s,color .15s}
+nav.top a.brand:hover{background:rgba(33,160,56,.10);color:var(--accent)}
+nav.top a.brand:active{transform:translateY(1px)}
+nav.top a.brand:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+</style>
+</head>
+<body>
+<nav class="top"><div class="in">
+  <a class="brand" href="#title" id="toTop" title="В начало страницы" aria-label="SberIndex: Forecast, в начало страницы"><img src="../assets/app.svg" alt=""><span class="bt">SberIndex: Forecast</span></a>
+  <a href="#how">Идея</a><a href="#task">Задача</a><a href="#terms">Словарь</a><a href="#arch">Архитектура</a><a href="#models">Модели</a><a href="#horizons">Горизонты</a>
+  <a href="#fm">Нейросети</a><a href="#null">Проверка</a><a href="#cpd">Сдвиги</a><a href="#news">Новости</a><a href="#cases">Примеры</a>
+  <a href="#repro">Воспроизводимость</a><a href="#outro">Выводы</a>
+  <span class="sp"></span>
+  <a class="btn" href="terminal.html">Открыть терминал →</a>
+  <span class="wctrl" id="wctrl">
+    <button type="button" id="wMin" title="Свернуть" aria-label="Свернуть"><svg viewBox="0 0 12 12"><path d="M2 6h8"/></svg></button>
+    <button type="button" id="wMax" title="Развернуть" aria-label="Развернуть"><svg viewBox="0 0 12 12"><rect x="2.2" y="2.2" width="7.6" height="7.6" rx="1"/></svg></button>
+    <button type="button" class="close" id="wClose" title="Закрыть" aria-label="Закрыть"><svg viewBox="0 0 12 12"><path d="M2.5 2.5l7 7M9.5 2.5l-7 7"/></svg></button>
+  </span>
+</div></nav>
+
+<section class="slide" id="title">
+  <img class="wordmark wm-light" src="../assets/logo.svg?v=4" alt="SberIndex: Forecast">
+  <img class="wordmark wm-dark" src="../assets/logo_dark.svg?v=4" alt="SberIndex: Forecast">
+  <p class="kicker">Аналитика на данных СберИндекса</p>
+  <h1>Прогноз потребительских расходов муниципалитетов и ранние сигналы структурных сдвигов</h1>
+  <div class="hero">
+    <div>
+      <div class="big num" id="tBig">&nbsp;</div>
+      <p class="hero-cap" id="tCap">&nbsp;</p>
+      <p class="lead" id="tLead"></p>
+    </div>
+    <div class="card"><div class="chart" id="tChart"></div><p class="note" id="tChartNote" style="margin:4px 0 0"></p></div>
+  </div>
+  <p class="facts" id="tStats"></p>
+  <p class="note" id="tNote"></p>
+</section>
+
+<section class="slide" id="how">
+  <p class="kicker">Идея</p>
+  <h2>Как это работает: четыре шага</h2>
+  <div class="grid g4 steps">
+    <div class="card"><h3>Берём расходы</h3><p>Сколько в месяц тратит по карте один житель каждого муниципалитета. Данные СберИндекса за 2023 и 2024 годы плюс открытая статистика.</p></div>
+    <div class="card"><h3>Строим прогнозы</h3><p>14 разных моделей, от простого «как год назад» до нейросетей. Итоговый прогноз – их среднее: так он устойчивее любой отдельной модели.</p></div>
+    <div class="card"><h3>Проверяем на прошлом</h3><p>Каждую модель запускаем в прошлом: она видит данные только до выбранного месяца и угадывает следующие. Сравниваем с тем, что было на самом деле, и так 7 раз.</p></div>
+    <div class="card"><h3>Ищем сдвиги</h3><p>Если расходы муниципалитета вдруг пошли иначе, чем по стране, детектор поднимает тревогу. Новости предупреждают о шоке примерно на месяц раньше данных.</p></div>
+  </div>
+  <p class="note">Дальше всё по порядку: что берём, чем меряем и что получилось. Незнакомые слова есть в словаре ниже.</p>
+</section>
+
+<section class="slide" id="task">
+  <p class="kicker">Задача</p>
+  <h2>Что прогнозируем и на чём</h2>
+  <div class="grid g2">
+    <div class="card">
+      <h3>Задача</h3>
+      <ul class="clean">
+        <li>Сколько в среднем тратит по карте житель каждого МО за месяц. Прогноз на 1, 3, 6 и 12 месяцев вперёд.</li>
+        <li>В каком МО и с какого месяца расходы пошли иначе, чем по стране в целом. Заметить это нужно как можно раньше.</li>
+        <li>Сравниваем с Prophet, известной готовой моделью прогноза от Meta. Главная метрика: средняя ошибка в рублях на жителя за месяц (MAE).</li>
+      </ul>
+      <h3 style="margin-top:14px">Метод</h3>
+      <ul class="clean">
+        <li>Прогнозируем рост к тому же месяцу прошлого года. Рубли получаются умножением прошлогоднего значения на этот рост, поэтому сезонность и масштаб МО учитываются сами.</li>
+        <li>Проверяем так, как было бы в жизни: модель видит только данные до даты прогноза и ни одного месяца из будущего.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Источники</h3>
+      <table>
+        <tr><th>Источник</th><th>Что берём</th></tr>
+        <tr><td>СберИндекс</td><td>расходы по МО и категориям, месяцы</td></tr>
+        <tr><td>Росстат, БД ПМО</td><td>население, зарплаты, оборот розницы, бюджеты</td></tr>
+        <tr><td>ЕМИСС</td><td>региональные показатели</td></tr>
+        <tr><td>Банк России</td><td>курсы, ставка, вклады</td></tr>
+        <tr><td>Производственный календарь</td><td>праздники, длинные выходные</td></tr>
+        <tr><td>Погода, вакансии («Работа России»)</td><td>условия в регионе</td></tr>
+        <tr><td>Lenta.ru, GDELT, акты о ЧС</td><td>новости и события, с 2023 г.</td></tr>
+      </table>
+      <p class="note">Все источники открытые. Свежие данные подтягиваются сами по расписанию.</p>
+    </div>
+  </div>
+</section>
+
+<section class="slide" id="terms">
+  <p class="kicker">Словарь</p>
+  <h2>Термины, которые встретятся дальше</h2>
+  <dl class="terms">
+    <div><dt>МО</dt><dd>Муниципальное образование, то есть город или район. По коду ОКТМО мы связываем данные СберИндекса с Росстатом.</dd></div>
+    <div><dt>MAE</dt><dd>На сколько рублей в среднем ошибается прогноз расходов одного жителя за месяц. Чем меньше, тем лучше.</dd></div>
+    <div><dt>Prophet</dt><dd>Известная модель прогноза от Meta. С ней мы сравниваем все остальные.</dd></div>
+    <div><dt>Рост г/г</dt><dd>Насколько месяц больше того же месяца год назад. Декабрь сравнивается с декабрём, и сезонность не мешает.</dd></div>
+    <div><dt>Проверка на истории, окно</dt><dd>Модель как будто запускают в прошлом: она видит данные только до выбранного месяца и прогнозирует дальше. Одна такая проверка называется окном. Окон у нас семь, с марта по сентябрь 2024 г., а ошибка усредняется по ним: один месяц мог оказаться удачным случайно.</dd></div>
+    <div><dt>Горизонт</dt><dd>На сколько месяцев вперёд смотрит прогноз: 1, 3, 6 или 12.</dd></div>
+    <div><dt>Простой прогноз (baseline)</dt><dd>Тот же месяц год назад, умноженный на нынешний темп роста. Если модель не лучше него, она не нужна.</dd></div>
+    <div><dt>Ансамбль</dt><dd>Среднее прогнозов нескольких моделей. Хорошо работает, когда модели ошибаются в разные стороны.</dd></div>
+    <div><dt>Фундаментальная модель</dt><dd>Нейросеть, которую уже обучили на миллионах чужих рядов (Chronos-Bolt, TimesFM). На наших данных мы её не дообучали.</dd></div>
+    <div><dt>Структурный сдвиг</dt><dd>Резкое и долгое изменение расходов в МО. Например, после паводка, закрытия крупного завода или эвакуации.</dd></div>
+    <div><dt>Детектор, EWMA</dt><dd>Правило, которое поднимает тревогу, когда расходы МО сдвинулись. EWMA сравнивает новый месяц со сглаженным средним прошлых. Наш детектор следит сразу за общими расходами и за четырьмя категориями и срабатывает по более сильному сигналу.</dd></div>
+    <div><dt>Ложная тревога, полнота</dt><dd>Ложная тревога означает сигнал там, где ничего не случилось. Полнота показывает, какую долю настоящих сдвигов детектор поймал.</dd></div>
+    <div><dt>Null-тест</dt><dd>Проверка на нарочно испорченных данных. Если модель правда чему-то научилась, на шуме она ошибается заметно сильнее.</dd></div>
+    <div><dt>R² внутри МО, WAPE</dt><dd>R² внутри МО показывает, насколько хорошо модель угадывает движение расходов от месяца к месяцу. WAPE показывает ту же ошибку, что MAE, только в процентах.</dd></div>
+    <div><dt>п.п.</dt><dd>Процентные пункты, разница между двумя процентами. Рост 8% вместо 10% на 2 п.п. меньше.</dd></div>
+  </dl>
+</section>
+
+<section class="slide" id="arch">
+  <p class="kicker">Архитектура</p>
+  <h2>Как устроено решение</h2>
+  <svg class="arch" viewBox="0 0 1160 430" role="img" aria-label="Схема архитектуры">
+    <defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor" style="color:var(--muted)"/></marker></defs>
+    <g>
+      <rect class="box" x="10" y="20" width="220" height="390" rx="10"/>
+      <text class="ttl" x="30" y="50">Источники</text>
+      <text class="sub" x="30" y="80">СберИндекс</text><text class="sub" x="30" y="104">Росстат БД ПМО, ЕМИСС</text>
+      <text class="sub" x="30" y="128">Банк России</text><text class="sub" x="30" y="152">Календарь, погода</text>
+      <text class="sub" x="30" y="176">Вакансии</text><text class="sub" x="30" y="200">Новости Lenta.ru, GDELT</text>
+      <text class="sub" x="30" y="240">проверка каждые 6 ч,</text><text class="sub" x="30" y="260">качаем только новое</text>
+    </g>
+    <path class="arr" d="M232 215 H282"/>
+    <g>
+      <rect class="box acc" x="285" y="20" width="400" height="390" rx="10"/>
+      <text class="ttl" x="305" y="50">Воркер: расписание и пересчёт</text>
+      <rect class="box" x="305" y="68" width="170" height="70" rx="8"/><text class="ttl" x="318" y="94">Загрузка</text><text class="sub" x="318" y="116">исходные файлы</text>
+      <rect class="box" x="495" y="68" width="170" height="70" rx="8"/><text class="ttl" x="508" y="94">Данные</text><text class="sub" x="508" y="116">таблица МО, признаки</text>
+      <rect class="box" x="305" y="158" width="170" height="70" rx="8"/><text class="ttl" x="318" y="184">Модели</text><text class="sub" x="318" y="206">проверка, горизонты</text>
+      <rect class="box" x="495" y="158" width="170" height="70" rx="8"/><text class="ttl" x="508" y="184">Сдвиги и нейросети</text><text class="sub" x="508" y="206">детекторы, Chronos, TimesFM</text>
+      <text class="sub" x="305" y="262">• пересчитывается только то, что изменилось</text>
+      <text class="sub" x="305" y="286">• сначала проверка качества, потом публикация</text>
+      <text class="sub" x="305" y="310">• при ошибке остаются прошлые результаты</text>
+      <text class="sub" x="305" y="334">• все настройки моделей лежат в YAML</text>
+      <text class="sub" x="305" y="358">• запускается сам, по расписанию</text>
+    </g>
+    <path class="arr" d="M687 215 H737"/>
+    <g>
+      <rect class="box" x="740" y="140" width="170" height="150" rx="10"/>
+      <text class="ttl" x="758" y="172">DuckDB</text><text class="sub" x="758" y="196">готовые</text><text class="sub" x="758" y="216">результаты</text>
+      <text class="sub" x="758" y="248">и журнал запусков</text>
+    </g>
+    <path class="arr" d="M912 180 C945 180 945 80 975 80"/>
+    <path class="arr" d="M912 215 H975"/>
+    <path class="arr" d="M912 250 C945 250 945 350 975 350"/>
+    <g>
+      <rect class="box" x="978" y="40" width="172" height="80" rx="8"/><text class="ttl" x="994" y="72">Приложение</text><text class="sub" x="994" y="96">PySide6 / Windows</text>
+      <rect class="box" x="978" y="175" width="172" height="80" rx="8"/><text class="ttl" x="994" y="207">REST API</text><text class="sub" x="994" y="231">FastAPI, /docs</text>
+      <rect class="box" x="978" y="310" width="172" height="80" rx="8"/><text class="ttl" x="994" y="342">Веб-версия</text><text class="sub" x="994" y="366">GitHub Pages</text>
+    </g>
+  </svg>
+  <p class="note">Приложение, REST API и веб-версия читают одну и ту же базу, поэтому цифры везде совпадают.</p>
+</section>
+
+<section class="slide" id="models">
+  <p class="kicker">Модели</p>
+  <h2 id="mTitle">Насколько ошибаются модели: ₽ на жителя в месяц</h2>
+  <div class="seg noprint" id="mSeg"><button data-k="MAE" class="on">MAE, все окна</button><button data-k="MAE_test">MAE, последнее окно</button><button data-k="R2_within">R² внутри МО</button></div>
+  <div class="grid g-chart">
+    <div class="card"><div class="chart" id="mChart"></div><p class="howto">Чем короче полоса, тем меньше ошибается модель. Зелёным показан итоговый прогноз, красным Prophet, фиолетовым готовые нейросети. Жёлтым отмечены ансамбли, которые мы собрали, уже зная результаты на этих окнах, поэтому их ошибка выглядит лучше, чем есть.</p></div>
+    <div class="card" id="mSide"></div>
+  </div>
+</section>
+
+<section class="slide" id="horizons">
+  <p class="kicker">Горизонты</p>
+  <h2 id="hTitle">Точность на горизонтах 1, 3, 6 и 12 месяцев</h2>
+  <div class="grid g-chart">
+    <div class="card"><div class="chart" id="hChart"></div><p class="howto">Слева направо прогноз смотрит всё дальше вперёд, и ошибка у всех растёт. Всё, что ниже красной линии Prophet, точнее него. Линия обрывается там, где модели не хватило истории.</p></div>
+    <div class="card" id="hSide"></div>
+  </div>
+</section>
+
+<section class="slide" id="fm">
+  <p class="kicker">Готовые нейросети</p>
+  <h2>Chronos-Bolt и TimesFM 2.5 без обучения на наших данных</h2>
+  <div class="grid g-chart">
+    <div class="card"><div class="chart" id="fmChart"></div><p class="howto">Высота столбца показывает среднюю ошибку прогноза на 1, 2 и 3 месяца вперёд: чем ниже, тем лучше. Фиолетовые столбцы относятся к готовым нейросетям. Для сравнения рядом итоговый прогноз, простой прогноз и Prophet.</p></div>
+    <div class="card" id="fmSide"></div>
+  </div>
+</section>
+
+<section class="slide" id="null">
+  <p class="kicker">Проверка на шум</p>
+  <h2>Проверка на испорченных данных</h2>
+  <div class="grid g-chart">
+    <div class="card"><div class="chart" id="nlChart"></div><p class="howto">Зелёный столбец показывает ошибку на настоящих данных, остальные на испорченных. Зелёный везде ниже, значит, модели опираются на реальные связи в данных.</p></div>
+    <div class="card" id="nlSide"></div>
+  </div>
+</section>
+
+<section class="slide" id="cpd">
+  <p class="kicker">Сдвиги</p>
+  <h2>Какой детектор ловит сдвиги лучше</h2>
+  <div class="seg noprint" id="cSeg"><button data-k="recall" class="on">Полнота по доле ложных тревог</button><button data-k="size">По размеру сдвига</button></div>
+  <div class="grid g-chart">
+    <div class="card"><div class="chart" id="cChart"></div><p class="howto">Чем выше линия, тем больше настоящих сдвигов ловит детектор при той же доле ложных тревог. Вторая вкладка показывает то же отдельно для падений на 5, 10 и 15%: крупные ловятся чаще.</p></div>
+    <div class="card" id="cSide"></div>
+  </div>
+</section>
+
+<section class="slide" id="real">
+  <p class="kicker">Паводки 2024</p>
+  <h2>Паводки апреля 2024 г.: что увидели данные и новости</h2>
+  <div class="grid g2">
+    <div class="card" id="rEvents"></div>
+    <div class="card" id="rWhy"></div>
+  </div>
+</section>
+
+<section class="slide" id="news">
+  <p class="kicker">Новости</p>
+  <h2>Новости приходят на месяц раньше данных</h2>
+  <div class="strip" id="nStats"></div>
+  <div class="grid g2" style="margin-top:16px">
+    <div class="card" id="nCpd"></div>
+    <div class="card" id="nFc"></div>
+  </div>
+</section>
+
+<section class="slide" id="cases">
+  <p class="kicker">Примеры</p>
+  <h2 id="caseTitle">Муниципалитет крупным планом</h2>
+  <ol class="walk" id="walk"></ol>
+  <div class="noprint" style="margin-bottom:10px"><select id="caseSel" aria-label="Выбор МО"></select></div>
+  <div class="grid g-chart">
+    <div class="card"><div class="chart sm" id="caseChart"></div><div class="chart sm" id="caseCpd" style="height:170px"></div><p class="howto">Чёрная линия – что было на самом деле, зелёная – наш прогноз на месяц вперёд, красный пунктир – Prophet, фиолетовая – ещё одна модель для сравнения. Внизу сила сигнала детектора: столбец выше пунктира означает тревогу.</p></div>
+    <div class="card" id="caseSide"></div>
+  </div>
+</section>
+
+<section class="slide" id="cases2">
+  <p class="kicker">Примеры</p>
+  <h2 id="case2Title">Сигнал детектора</h2>
+  <div class="grid g-chart">
+    <div class="card"><div class="chart sm" id="case2Chart"></div><div class="chart sm" id="case2Cpd" style="height:170px"></div><p class="howto">Обозначения те же, что в примере выше.</p></div>
+    <div class="card" id="case2Side"></div>
+  </div>
+</section>
+
+<section class="slide" id="repro">
+  <p class="kicker">Воспроизводимость</p>
+  <h2>Как проверить и повторить</h2>
+  <div class="grid g2">
+    <div class="card">
+      <h3>Метрики</h3>
+      <ul class="clean">
+        <li><b>MAE</b>: средняя ошибка в рублях на жителя в месяц. Главная метрика.</li>
+        <li><b>WAPE</b>: та же ошибка в процентах от расходов.</li>
+        <li><b>R² внутри МО</b> показывает, как модель угадывает движение расходов во времени. Обычный R² здесь почти всегда около 0,98 из-за разницы между МО, поэтому мало о чём говорит.</li>
+        <li><b>Полнота</b> детектора при одной и той же доле ложных тревог и <b>задержка</b> до тревоги в месяцах.</li>
+      </ul>
+      <h3 style="margin-top:14px">Почему оценке можно верить</h3>
+      <ul class="clean">
+        <li>Прогноз проверен из семи точек (март–сентябрь 2024 г.) на 1–3 месяца вперёд, каждый раз только по прошлым данным.</li>
+        <li>Итоговый прогноз считается как среднее всех моделей, ничего не подобрано под проверку. Мы пробовали выбирать модели по прошлой ошибке, и это получалось хуже.</li>
+        <li>Ансамбли с подобранным составом показаны отдельно: их ошибка выглядит лучше, чем есть.</li>
+        <li>На испорченных данных модели теряют весь выигрыш, значит, он не случайный.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Запуск</h3>
+<pre>powershell -ExecutionPolicy Bypass -File setup.ps1
+.venv/Scripts/python -m worker run --fetch --heavy
+.venv/Scripts/python -m app.main          # приложение
+.venv/Scripts/python -m server            # REST API + веб</pre>
+      <h3 style="margin-top:6px">Конфигурации (YAML)</h3>
+      <p id="rCfg" class="num" style="font-size:13px"></p>
+      <p class="note" id="rGit"></p>
+    </div>
+  </div>
+</section>
+
+<section class="slide" id="outro">
+  <p class="kicker">Выводы</p>
+  <h2>Итоги и следующие шаги</h2>
+  <div class="grid g2">
+    <div class="card" id="oDone"></div>
+    <div class="card">
+      <h3>Что пока ограничивает результат</h3>
+      <ul class="clean">
+        <li>История по МО длится всего 24 месяца. Для прогноза на полгода и год собственных данных МО мало, поэтому там мы опираемся на рост расходов по России.</li>
+        <li>Паводки 2024 г. почти не сдвинули расходы (на 2–5 п.п.). По одним данным такое трудно отличить от обычных колебаний, нужна ещё и новость.</li>
+        <li>Федеральные СМИ пишут в основном о крупных городах. О малых МО новостей почти нет.</li>
+        <li>Детекторы мы сравнивали на искусственных сдвигах. Реальных событий с точной датой в данных мало: шесть МО одного паводка.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<footer>SberIndex: Forecast · <a href="terminal.html">интерактивный терминал</a> · <a href="../docs/report.pdf" target="_blank" rel="noopener">методологический отчёт (PDF)</a> · <a href="../docs/presentation.pdf" target="_blank" rel="noopener">презентация (PDF)</a></footer>
+
+<script src="../assets/vendor/echarts.min.js"></script>
+<script>
+const $=id=>document.getElementById(id);
+const PRINT=new URLSearchParams(location.search).has('print');
+if(PRINT){document.documentElement.classList.add('print');document.documentElement.dataset.theme='light';}
+const fmt=(v,d=0)=>v==null||!isFinite(v)?'н/д':Number(v).toLocaleString('ru-RU',{maximumFractionDigits:d,minimumFractionDigits:d});
+const pct=(v,d=0)=>v==null?'н/д':fmt(v*100,d)+'%';
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const short=s=>String(s).replace(/^городской округ (город )?/,'').replace(/ муниципальный (район|округ)$/,' р-н').replace(/^внутригородская территория города федерального значения /,'');
+
+// Данные: статическая сборка (../data/*.json) или REST API сервера
+const STATIC={summary:'summary.json',models:'models.json',horizons:'horizons.json',cpd:'cpd.json',
+  results:'results.json',news:'news.json',mo:o=>`mo/${o}.json`,forecast:o=>`mo/${o}_forecast.json`,cpdMo:o=>`cpd/${o}.json`};
+const API={summary:'/api/summary',models:'/api/models',horizons:'/api/horizons',cpd:'/api/cpd',
+  results:'/api/results',news:'/api/news',mo:o=>`/api/mo/${o}`,forecast:o=>`/api/mo/${o}/forecast`,cpdMo:o=>`/api/cpd/${o}`};
+// В настольном приложении данные идут через мост Python (QWebChannel, как в терминале):
+// страница открыта из файла, ни ../data, ни /api там нет
+const DESKTOP=typeof qt!=='undefined'&&!!qt.webChannelTransport;
+const BRIDGE={summary:'summary',models:'modelMetrics',horizons:'horizonsOverview',cpd:'cpdOverview',
+  results:'resultsOverview',news:'newsOverview',mo:'moDetail',forecast:'moForecast',cpdMo:'cpdMo'};
+let PY=null;
+function pyReady(){
+  return PY||(PY=new Promise((res,rej)=>{
+    const s=document.createElement('script');s.src='qrc:///qtwebchannel/qwebchannel.js';
+    s.onerror=()=>rej(new Error('qwebchannel.js не загрузился'));
+    s.onload=()=>new QWebChannel(qt.webChannelTransport,ch=>{
+      const py=ch.objects.py,wait=new Map();let seq=0;
+      py.response.connect((id,txt)=>{const f=wait.get(id);if(f){wait.delete(id);f(txt);}});
+      py.call=(name,args)=>new Promise(r=>{const id=++seq;wait.set(id,r);py.request(name,JSON.stringify(args),id);});
+      res(py);});
+    document.head.appendChild(s);}));
+}
+// одна проверка на всю страницу (запросы идут параллельно): 404 здесь в режиме сервера – норма
+let SRC=null;
+function src(){
+  return SRC||(SRC=fetch('../data/summary.json').then(r=>r.ok?(k=>'../data/'+k):'api',()=>'api'));
+}
+async function get(name,arg){
+  if(DESKTOP){
+    const py=await pyReady(),d=JSON.parse(await py.call(BRIDGE[name],arg==null?[]:[arg]));
+    if(d&&d.error){py.jsLog('warning',`landing ${name}: ${d.error}`);throw new Error(`${name}: ${d.error}`);}
+    return d;
+  }
+  const s=await src();
+  const p=s==='api'?API[name]:s(typeof STATIC[name]==='function'?STATIC[name](arg):STATIC[name]);
+  const url=typeof p==='function'?p(arg):p;
+  const r=await fetch(url);
+  if(!r.ok) throw new Error(`${name}: HTTP ${r.status}`);
+  return r.json();
+}
+
+const charts=[];
+function chart(el,opt){
+  const c=echarts.init(el,null,{renderer:'svg'});
+  const ink=css('--ink2'),line=css('--line'),muted=css('--muted');
+  const ax=a=>a&&(Array.isArray(a)?a.map(ax):Object.assign({axisLine:{lineStyle:{color:line}},axisLabel:{color:muted},
+    splitLine:{lineStyle:{color:line}},nameTextStyle:{color:muted}},a));
+  opt.xAxis=ax(opt.xAxis);opt.yAxis=ax(opt.yAxis);
+  const o=Object.assign({animation:!PRINT,animationDuration:1100,animationEasing:'cubicOut',
+    textStyle:{fontFamily:css('--font'),color:ink}},opt);
+  if(opt.legend) o.legend=Object.assign({textStyle:{color:ink}},opt.legend,PRINT?{type:'plain'}:{});
+  // легенда в несколько строк на узком экране не должна наезжать на график:
+  // оцениваем её высоту по ширине контейнера и опускаем поле графика ниже
+  if(o.legend&&o.legend.type!=='scroll'&&o.grid&&typeof o.grid.top==='number'){
+    const W=(el.clientWidth||600)-20;let rows=1,x=0;
+    for(const s of [].concat(o.series||[])){const w=String(s.name||'').length*6.6+38;
+      if(x+w>W&&x>0){rows++;x=0;}x+=w;}
+    o.grid=Object.assign({},o.grid,{top:Math.max(o.grid.top,rows*23+18)});
+  }
+  // на узком экране меньше делений на числовой оси – подписи не слипаются
+  if((el.clientWidth||600)<560) for(const k of ['xAxis','yAxis']) for(const a of [].concat(o[k]||[]))
+    if(a&&a.type==='value'&&a.splitNumber==null) a.splitNumber=3;
+  // подсказка – плавающее стекло поверх графика
+  if(opt.tooltip) o.tooltip=Object.assign({backgroundColor:css('--glass'),borderColor:css('--glass-edge'),borderWidth:1,padding:[8,12],
+    textStyle:{color:css('--ink'),fontFamily:css('--font'),fontSize:13},
+    extraCssText:`border-radius:10px;box-shadow:${css('--glass-shadow')};-webkit-backdrop-filter:${css('--glass-blur')};backdrop-filter:${css('--glass-blur')};`},opt.tooltip);
+  // столбцы вырастают по очереди, линии дорисовываются
+  o.series=[].concat(o.series||[]).map(s=>s.type==='bar'?Object.assign({animationDuration:800,animationDelay:i=>i*40},s):s);
+  // рисуем, когда график впервые попал в окно, – иначе анимацию никто не увидит
+  if(PRINT||!('IntersectionObserver' in window)) c.setOption(o);
+  else{const io=new IntersectionObserver(es=>{if(es.some(e=>e.isIntersecting)){io.disconnect();pending.delete(c);c.setOption(o);}},{threshold:.25});
+    pending.set(c,()=>{io.disconnect();c.setOption(o);});io.observe(el);}
+  charts.push(c);return c;
+}
+const pending=new Map();
+addEventListener('resize',()=>charts.forEach(c=>c.resize()));
+// глубина при прокрутке: меню «приподнимается» над страницей, зелёный свет отстаёт
+// (сдвиг пишется в transform отдельного слоя: переменная на :root пересчитывала стили всей страницы каждый кадр)
+const CALM=matchMedia('(prefers-reduced-motion: reduce)').matches;
+{const nav=document.querySelector('nav.top'),glow=document.createElement('div');let raf=0,lifted=null;
+  glow.className='glow';document.body.prepend(glow);
+  const upd=()=>{raf=0;const y=scrollY,l=y>8;if(l!==lifted){lifted=l;nav.classList.toggle('lifted',l);}
+    if(!CALM) glow.style.transform=`translate3d(0,${-Math.min(y,4000)*.12}px,0)`;};
+  addEventListener('scroll',()=>{if(!raf) raf=requestAnimationFrame(upd);},{passive:true});upd();}
+// появление разделов: заголовки и карточки по очереди, один раз
+function reveal(){
+  if(PRINT||CALM||!('IntersectionObserver' in window)) return;
+  const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){const t=e.target;t.classList.add('in');io.unobserve(t);
+      setTimeout(()=>{t.classList.remove('rv','in');t.style.removeProperty('--d');},1400);}}),
+    {rootMargin:'0px 0px -8% 0px'});
+  document.querySelectorAll('section.slide:not(#title)').forEach(s=>{
+    s.querySelectorAll(':scope>.kicker,:scope>h2,:scope>.lead,:scope .card,:scope .strip,:scope .terms>div').forEach((el,i)=>{
+      el.classList.add('rv');el.style.setProperty('--d',Math.min(i,8)*.06+'s');io.observe(el);});});
+  document.documentElement.classList.add('anim');
+}
+reveal();
+// печать из браузера (Ctrl+P): раскладка слайдами, все графики дорисованы и под новый размер
+addEventListener('beforeprint',()=>{document.documentElement.classList.add('print');pending.forEach(f=>f());pending.clear();charts.forEach(c=>c.resize());});
+addEventListener('afterprint',()=>{if(!PRINT){document.documentElement.classList.remove('print');charts.forEach(c=>c.resize());}});
+function isFM(id){return /^(chronos|timesfm)/.test(id);}
+function stat(v,l,hl){return `<div class="cell${hl?' hl':''}"><div class="v num">${v}</div><div class="l">${l}</div></div>`}
+const MON=['янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек'];
+const monYm=s=>MON[+s.slice(5,7)-1]+(s.slice(5,7)==='01'?' '+s.slice(0,4):'');
+
+// подпись под главной цифрой: 43% – среднее на 1–3 месяца, на дальних горизонтах выигрыш больше
+function setCap(){$('tCap').textContent='прогноз точнее Prophet на 1–3 месяца вперёд'+(window.__gMax?` (на дальних горизонтах – до ${fmt(window.__gMax*100)}%)`:'');}
+
+// ---------------------------------------------------------------- слайды
+function renderTitle(S,M,C){
+  const gain=S.gain_vs_prophet;
+  $('tBig').textContent=pct(gain);
+  setCap();
+  $('tBig').classList.add('ready'); $('tCap').classList.add('ready');
+  $('tLead').innerHTML=`Средняя ошибка прогноза <b>${fmt(S.best_model.MAE)} ₽</b> на жителя в месяц против ${fmt(S.prophet.MAE)} ₽ у Prophet. `+
+    `Это ${S.territories&&S.territories>S.mo?`${fmt(S.territories)} территорий набора (${fmt(S.mo)} муниципалитетов: один округ записан двумя кодами)`:`${fmt(S.mo)} муниципалитетов`} из ${S.regions} регионов, данные за ${esc(S.period)}.`;
+  const sep='<span class="sep">|</span>';
+  // лучший честный срез: итоговая модель (без подбора) на последнем окне проверки
+  const bt=S.best_model,pt=S.prophet,to=M.test_origin||'';
+  const lastWin=bt&&pt&&bt.MAE_test&&pt.MAE_test?`<b>${pct(1-bt.MAE_test/pt.MAE_test)}</b> точнее Prophet в последнем окне (${to.slice(5)}.${to.slice(0,4)}): ${fmt(bt.MAE_test)} против ${fmt(pt.MAE_test)} ₽${sep}`:'';
+  $('tStats').innerHTML=`<b>${fmt(M.n_series)}</b> МО в проверке прогноза${sep}`+lastWin+
+    `<b>${pct(C.methods.find(m=>m.method===C.best).recall[String(C.main_far)])}</b> сдвигов ловит ${esc(C.best_name)} при 5% ложных тревог${sep}`+
+    `<b>${fmt(S.pop_covered/1e6,0)} млн</b> жителей живут в этих МО`;
+  $('tNote').textContent=`Проверено на ${fmt(S.best_model.n)} прогнозах: ${M.origins.length} дат прогноза, на 1–${M.horizon} месяца вперёд, ${fmt(M.n_series)} МО.`;
+  // PDF-презентация – снимок на дату сборки; приложение потом само обновляет данные
+  if(PRINT) $('tNote').textContent+=` Цифры на ${new Date().toLocaleDateString('ru-RU')}; приложение само подтягивает свежие данные, и позже его цифры могут отличаться.`;
+  // ошибка по точкам прогноза: лучшая модель против Prophet, подписи прямо у линий
+  const b=M.models.find(m=>m.model===M.best),p=M.models.find(m=>m.model==='prophet_default');
+  const line=(m,c,w,dash)=>({name:m.name,type:'line',symbol:'circle',symbolSize:5,data:M.origins.map(o=>m.by_origin[o]),
+    itemStyle:{color:c},lineStyle:{color:c,width:w,type:dash?'dashed':'solid'},
+    endLabel:{show:true,formatter:m.name,color:c,fontWeight:600,fontSize:12,distance:8}});
+  chart($('tChart'),{grid:{left:4,right:150,top:14,bottom:4,containLabel:true},
+    tooltip:{trigger:'axis',valueFormatter:v=>fmt(v)+' ₽'},
+    xAxis:{type:'category',data:M.origins.map(monYm),boundaryGap:false,axisTick:{show:false}},
+    yAxis:{type:'value',scale:true,splitNumber:3,axisLabel:{formatter:v=>fmt(v)}},
+    series:[line(p,css('--bad'),1.8,true),line(b,css('--accent'),3,false)]});
+  $('tChartNote').textContent=`Средняя ошибка, ₽, для прогнозов из каждого месяца ${monYm(M.origins[0])}–${monYm(M.origins[M.origins.length-1])} 2024 г.`;
+}
+
+let MODELS=null;
+// короткие подписи на оси графика моделей; полное имя – в подсказке при наведении
+const AXIS_SHORT={'ens_eq[factor_mix]':'Ансамбль факторов',mean_all:'Среднее всех',
+  'ens_w[chronos_base_rel+lightgbm]':'Ансамбль Chronos + LightGBM','ens_eq[top3]':'Ансамбль трёх лучших',
+  chronos_base_rel:'Chronos-Bolt, фактор',chronos_base_rel_reg:'Chronos-Bolt, фактор региона',
+  ets_rel:'ETS, фактор',ets_rel_reg:'ETS, фактор региона',chronos:'Chronos-Bolt',timesfm:'TimesFM 2.5',
+  hist_gbm:'HistGB',baseline:'Год назад × рост',ridge:'Ridge',factor_only:'Общий фактор',
+  prophet_yearly3:'Prophet, год. сезонность',prophet_default:'Prophet',naive:'Последний месяц',seasonal_naive:'Год назад без роста'};
+function renderModels(M,key){
+  const rows=M.models.filter(m=>m[key]!=null).slice();
+  const desc=key==='R2_within';
+  rows.sort((a,b)=>desc?b[key]-a[key]:a[key]-b[key]);
+  const shown=key==='R2_within'?rows.filter(r=>r[key]>-1.5):rows;
+  const col=m=>m.model===M.best?css('--accent'):m.model.startsWith('prophet')?css('--bad'):
+    m.tuned?css('--warn'):isFM(m.model)?css('--violet'):css('--info');
+  chart($('mChart'),{grid:{left:24,right:$('mChart').clientWidth>560?150:96,top:6,bottom:6,containLabel:true},
+    tooltip:{trigger:'axis',axisPointer:{type:'shadow'},formatter:ps=>{const p=ps[0],m=shown[p.dataIndex];
+      return `${esc(m.name)}<br><b>${key==='R2_within'?fmt(p.value,2):fmt(p.value)+' ₽'}</b>`;}},
+    // на узком экране под полосы остаётся мало места: ось скрыта, значения подписаны у полос
+    xAxis:{type:'value',axisLabel:{show:$('mChart').clientWidth>560,formatter:v=>key==='R2_within'?fmt(v,1):fmt(v)}},
+    yAxis:{type:'category',inverse:true,data:shown.map(m=>AXIS_SHORT[m.model]||m.name),axisLabel:{width:230,overflow:'truncate'}},
+    series:[{type:'bar',data:shown.map(m=>({value:m[key],itemStyle:{color:col(m),borderRadius:3}})),
+      label:{show:true,position:'right',color:css('--ink2'),fontSize:12,
+        formatter:p=>{const v=key==='R2_within'?fmt(p.value,2):fmt(p.value),m=shown[p.dataIndex].model;
+          return m===M.best?`${v}  ← итоговый прогноз`:m==='prophet_default'?`${v}  ← Prophet`:v;}}}]});
+  const b=M.models.find(m=>m.model===M.best),p=M.models.find(m=>m.model==='prophet_default');
+  const ens=M.models.filter(m=>m.tuned&&m.MAE_test!=null);
+  const eb=ens.slice().sort((x,y)=>x.MAE_test-y.MAE_test)[0];
+  $('mSide').innerHTML=`<h3>Что видно</h3>
+    <p>Итоговый прогноз ошибается в среднем на <b>${fmt(b.MAE)} ₽</b>, а Prophet на ${fmt(p.MAE)} ₽. Наша ошибка меньше на <b>${pct(1-b.MAE/p.MAE)}</b>. В последнем окне (${esc(M.test_origin)}) разница ещё заметнее: ${fmt(b.MAE_test)} против ${fmt(p.MAE_test)} ₽.</p>
+    ${M.best==='mean_all'?'<p>Итоговый прогноз считается как простое среднее всех моделей. Модели разных типов ошибаются в разные месяцы, поэтому их среднее устойчивее любой отдельной модели. Состав мы не подбирали.</p>':''}
+    <p>Сильнее всего работают модели, которые учатся сразу на всех МО. Одни берут сезонность у всего региона и прогнозируют только отклонение конкретного МО, другие учатся на признаках двух тысяч МО. Prophet строит отдельную модель по 24 точкам каждого МО и подстраивается под случайные колебания.</p>
+    ${eb?`<p>Жёлтые ансамбли собраны, когда результаты на этих окнах уже были известны. Сравнивать их с остальными можно только по последнему окну: у лучшего ансамбля ${fmt(eb.MAE_test)} ₽, у итогового прогноза ${fmt(b.MAE_test)} ₽.</p>`:''}
+    <p class="note"><span style="color:${css('--accent')}">●</span> итоговый прогноз <span style="color:${css('--bad')}">●</span> Prophet <span style="color:${css('--violet')}">●</span> нейросети <span style="color:${css('--info')}">●</span> остальные</p>`;
+}
+
+function gainRange(H){
+  const g=H.horizons.map(h=>{const b=H.best[String(h)];const m=H.models.find(x=>x.model===b.model);return m.vs_prophet[String(h)];}).filter(v=>v>0);
+  return g.length?`${fmt(Math.min(...g)*100)}–${fmt(Math.max(...g)*100)}%`:'н/д';
+}
+function renderHorizons(H,M){
+  const g=H.horizons.map(h=>{const b=H.best[String(h)];const m=H.models.find(x=>x.model===b.model);return m.vs_prophet[String(h)];}).filter(v=>v>0);
+  if(g.length){window.__gMax=Math.max(...g); if($('tBig').classList.contains('ready')) setCap();}
+  if(g.length===H.horizons.length) $('hTitle').textContent=`Точнее Prophet на всех ${g.length} горизонтах: на ${gainRange(H)}`;
+  const pick=[...new Set([M.best,'national_growth','catboost','random_forest','chronos','timesfm','baseline','prophet_default','naive'])];
+  const COL={catboost:'#1b7a8c',random_forest:'#5fb36b',chronos:css('--violet'),timesfm:'#b58cf0',national_growth:'#c98a1b',
+    baseline:css('--info'),prophet_default:css('--bad'),naive:css('--muted'),[M.best]:css('--accent')};
+  const ms=H.models.filter(m=>pick.includes(m.model)).sort((a,b)=>pick.indexOf(a.model)-pick.indexOf(b.model));
+  chart($('hChart'),{grid:{left:8,right:96,top:84,bottom:8,containLabel:true},legend:{top:0,type:'plain',itemGap:12},
+    tooltip:{trigger:'axis',valueFormatter:v=>v==null?'н/д':fmt(v)+' ₽'},
+    xAxis:{type:'category',data:H.horizons.map(h=>h+' мес.'),boundaryGap:false},
+    yAxis:{type:'value',axisLabel:{formatter:v=>fmt(v)}},
+    series:ms.map(m=>({name:m.name.replace(' (Google)','').replace(' (Amazon)',''),type:'line',symbolSize:7,connectNulls:false,
+      lineStyle:{width:m.model===M.best||m.model==='prophet_default'?3:1.8},itemStyle:{color:COL[m.model]},
+      // Prophet доходит до 12 мес. – имя у конца линии; у лучшей модели линия обрывается
+      // среди других, поэтому имя под её последней точкой, где линий нет (она ниже всех)
+      endLabel:{show:m.model==='prophet_default',formatter:p=>p.seriesName,color:COL[m.model],fontWeight:600,fontSize:12},
+      data:(()=>{const v=H.horizons.map(h=>m.mae[String(h)]);if(m.model!==M.best) return v;
+        const last=v.map(x=>x!=null).lastIndexOf(true);
+        return v.map((x,i)=>i===last?{value:x,label:{show:true,position:'bottom',distance:10,formatter:m.name.replace(' (Google)','').replace(' (Amazon)',''),
+          color:COL[m.model],fontWeight:600,fontSize:12}}:x);})()}))});
+  const rows=H.horizons.map(h=>{const b=H.best[String(h)];const m=H.models.find(x=>x.model===b.model);
+    return `<tr><td>${h} мес.</td><td style="text-align:left">${esc(b.name)}</td><td class="num">${fmt(m.mae[String(h)])}</td><td class="num">${m.vs_prophet[String(h)]?'−'+pct(m.vs_prophet[String(h)]):'–'}</td></tr>`;}).join('');
+  $('hSide').innerHTML=`<h3>Лучшая модель для каждого горизонта</h3>
+    <table><tr><th>Горизонт</th><th style="text-align:left">Модель</th><th>MAE, ₽</th><th>чем Prophet</th></tr>${rows}</table>
+    <p style="margin-top:12px">Все горизонты проверены на одних и тех же месяцах (${esc(H.targets[0])}…${esc(H.targets[H.targets.length-1])}), поэтому их можно сравнивать между собой.</p>
+    <p>На месяц и квартал вперёд лучше всего работает среднее всех моделей. Для полугода и года у МО слишком короткая история: роста к прошлому году за 2023 г. просто нет. Здесь выручает простое правило: тот же месяц год назад, умноженный на рост расходов по России. Этот рост СберИндекс публикует с 2018 г., и на дату прогноза он уже известен (мы берём его с запасом в месяц).</p>`;
+}
+
+function renderFM(M,H){
+  const ids=[...new Set([M.best,'timesfm','chronos','baseline','prophet_default'])];
+  const ms=ids.map(i=>M.models.find(m=>m.model===i)).filter(Boolean);
+  const hs=['1','2','3'];
+  const COL={chronos:css('--violet'),timesfm:'#b58cf0',baseline:css('--info'),prophet_default:css('--bad'),[M.best]:css('--accent')};
+  chart($('fmChart'),{grid:{left:8,right:16,top:40,bottom:8,containLabel:true},legend:{top:0},
+    tooltip:{trigger:'axis',axisPointer:{type:'shadow'},valueFormatter:v=>fmt(v)+' ₽'},
+    xAxis:{type:'category',data:hs.map(h=>`${h} мес. вперёд, MAE ₽`)},yAxis:{type:'value',axisLabel:{formatter:v=>fmt(v)}},
+    series:ms.map(m=>({name:m.name.replace(' (Google)','').replace(' (Amazon)',''),type:'bar',barGap:'10%',
+      itemStyle:{color:COL[m.model],borderRadius:[3,3,0,0]},data:hs.map(h=>m.by_h[h])}))});
+  const c=M.models.find(m=>m.model==='chronos'),t=M.models.find(m=>m.model==='timesfm'),b=M.models.find(m=>m.model===M.best),
+    fr=M.models.find(m=>m.model==='chronos_base_rel_reg');
+  // лучшая одиночная модель без подбора (не среднее и не ансамбль), кроме самой fr
+  const single=M.models.filter(m=>!m.tuned&&m.model!=='mean_all'&&!m.model.startsWith('ens_')&&m.model!=='chronos_base_rel_reg')
+    .sort((x,y)=>x.MAE-y.MAE)[0];
+  const p=M.models.find(m=>m.model==='prophet_default'),bl=M.models.find(m=>m.model==='baseline');
+  const g=Math.min(c.MAE,t.MAE),gp=1-g/p.MAE;
+  const lv=H.models.find(m=>m.model==='timesfm_level');
+  $('fmSide').innerHTML=`<h3>Что получилось</h3>
+    <p>Эти нейросети уже обучены на миллионах чужих рядов, и мы запускали их без дообучения, прямо на своём компьютере.</p>
+    <table><tr><th>Модель</th><th>MAE</th><th>последнее окно</th></tr>
+    <tr><td>TimesFM 2.5</td><td class="num">${fmt(t.MAE)}</td><td class="num">${fmt(t.MAE_test)}</td></tr>
+    <tr><td>Chronos-Bolt</td><td class="num">${fmt(c.MAE)}</td><td class="num">${fmt(c.MAE_test)}</td></tr>
+    ${b&&!['chronos','timesfm'].includes(b.model)?`<tr class="best"><td>${esc(b.name)}</td><td class="num">${fmt(b.MAE)}</td><td class="num">${fmt(b.MAE_test)}</td></tr>`:''}</table>
+    <ul class="clean" style="margin-top:12px">
+      <li>Если давать им ряд роста к прошлому году, они точнее Prophet на ${pct(gp)}${g<bl.MAE?' и точнее простого прогноза':''}.</li>
+      ${b&&isFM(b.model)?`<li>Если снять с ряда общую волну региона и прогнозировать только отклонение МО, получается лучшая модель: ${fmt(b.MAE)} ₽.</li>`:fr&&single&&fr.MAE<single.MAE?`<li>Если снять с ряда общую волну региона и прогнозировать только отклонение МО, ошибка падает до ${fmt(fr.MAE)} ₽. Это лучшая одиночная модель (следом ${esc(single.name)}, ${fmt(single.MAE)} ₽).</li>`:fr&&single?`<li>Если снять с ряда общую волну региона и прогнозировать только отклонение МО, ошибка падает до ${fmt(fr.MAE)} ₽. Это почти столько же, сколько у лучшей одиночной модели (${esc(single.name)}, ${fmt(single.MAE)} ₽).</li>`:''}
+      <li>На сырых рублях без пересчёта в рост те же нейросети ошибаются в разы сильнее: у TimesFM ${lv?fmt(lv.mae['3']):'н/д'} ₽ на 3 месяца вперёд.</li>
+      <li>Прогноз Chronos мы пробовали и как детектор сдвигов. Результаты есть на слайде про детекторы.</li>
+    </ul>`;
+}
+
+function renderNull(T){
+  if(!T){$('null').style.display='none';return;}
+  const sc=['real','noise_features','shuffled_target','shuffled_within_month'];
+  const COL={real:css('--accent'),noise_features:css('--muted'),shuffled_target:css('--warn'),shuffled_within_month:css('--bad')};
+  const ms=T.models;
+  chart($('nlChart'),{grid:{left:8,right:16,top:PRINT?44:40,bottom:8,containLabel:true},legend:{top:0},
+    tooltip:{trigger:'axis',axisPointer:{type:'shadow'},valueFormatter:v=>fmt(v)+' ₽'},
+    xAxis:{type:'category',data:ms.map(m=>m.name.replace('HistGradientBoosting','HistGB').replace('Линейная (ridge)','Ridge')),axisLabel:{interval:0}},yAxis:{type:'value',axisLabel:{formatter:v=>fmt(v)}},
+    series:sc.map(k=>({name:T.scenarios[k],type:'bar',itemStyle:{color:COL[k]},data:ms.map(m=>k==='real'?m.real:m[k])}))});
+  const best=ms[0];
+  const worst=k=>Math.min(...ms.map(m=>m[k]/m.real-1));
+  const pmax=Math.max(...ms.flatMap(m=>sc.slice(1).map(k=>m['p_'+k]).filter(v=>v!=null)));
+  $('nlSide').innerHTML=`<h3>Как проверяли</h3>
+    <p>Мы взяли те же модели и те же окна, но испортили данные тремя способами: заменили признаки шумом, перемешали ответы между строками или перемешали их между МО внутри одного месяца. Если модель правда что-то знает о муниципалитетах, на таких данных она должна ошибаться сильнее.</p>
+    <p>Каждый способ мы повторили ${T.seeds} раз. ${esc(best.name)} на настоящих данных ошибается на ${fmt(best.real)} ₽, на испорченных на ${fmt(Math.min(...sc.slice(1).map(k=>best[k])))}–${fmt(Math.max(...sc.slice(1).map(k=>best[k])))} ₽. ${pmax<=1/(T.seeds+1)+1e-9?`Ни разу испорченные данные не дали ошибку меньше, чем настоящие (p = ${fmt(pmax,3)}, меньше при ${T.seeds} повторах не бывает).`:`У части моделей испорченные данные иногда не хуже настоящих (наибольшее p = ${fmt(pmax,3)}, см. график).`}</p>
+    <p class="note">Третий способ сохраняет общий темп роста страны и стирает только различия между МО. Ошибка растёт и здесь, значит, модели видят различия между муниципалитетами, кроме общего тренда.</p>`;
+}
+
+let CPD=null;
+function renderCpd(C,mode){
+  const ms=C.methods.slice();
+  // свой цвет каждому детектору (как в отчёте): выбранный – зелёный, Chronos – фиолетовые, офлайн PELT – янтарный
+  const OTHER=['#2f7fd8','#0f9fb0','#e0702a','#b5498f','#5c6bc0','#6d8f1f','#8a93a0','#c2410c','#0e7490'];
+  const colOf={};let k=0;
+  for(const m of ms) colOf[m.method]=m.method===C.best?css('--accent'):m.method==='chronos_median'?css('--violet')
+    :m.method.startsWith('chronos')?'#c4a8f5':!m.online?css('--warn'):OTHER[k++%OTHER.length];
+  const COLM=m=>colOf[m.method];
+  if(mode==='recall'){
+    const far=C.far_targets.map(String);
+    chart($('cChart'),{grid:{left:8,right:44,top:PRINT?120:112,bottom:8,containLabel:true},legend:{top:0,type:'plain',itemGap:10},
+      tooltip:{trigger:'axis',valueFormatter:v=>pct(v)},
+      xAxis:{type:'category',data:far.map(f=>pct(+f)+' ложных'),boundaryGap:false},
+      yAxis:{type:'value',max:0.7,axisLabel:{formatter:v=>pct(v)}},
+      series:ms.map(m=>({name:m.name,type:'line',symbolSize:6,itemStyle:{color:COLM(m)},
+        lineStyle:{width:m.method===C.best?3.2:1.6,type:m.method==='zscore_no_common'?'dashed':'solid'},data:far.map(f=>m.recall[f])}))});
+  } else {
+    const sz=Object.keys(ms[0].by_size).sort((a,b)=>+a-+b);
+    chart($('cChart'),{grid:{left:8,right:44,top:PRINT?120:112,bottom:8,containLabel:true},legend:{top:0,type:'plain',itemGap:10},
+      tooltip:{trigger:'axis',axisPointer:{type:'shadow'},valueFormatter:v=>pct(v)},
+      xAxis:{type:'category',data:sz.map(s=>'провал '+pct(-s))},yAxis:{type:'value',axisLabel:{formatter:v=>pct(v)},max:0.7},
+      series:ms.map(m=>({name:m.name,type:'bar',itemStyle:{color:COLM(m)},data:sz.map(s=>m.by_size[s])}))});
+  }
+  const rows=ms.map(m=>`<tr${m.method===C.best?' class="best"':''}><td>${esc(m.name)}${m.online?'':'<span class="tag">офлайн</span>'}</td><td class="num">${pct(m.recall[String(C.main_far)])}</td><td class="num">${m.f1==null?'–':fmt(m.f1,2)}</td><td class="num">${fmt(m.delay,2)}</td></tr>`).join('');
+  $('cSide').innerHTML=`<h3>Сколько сдвигов ловит каждый детектор</h3>
+    <table><tr><th>Детектор</th><th>Полнота</th><th>F1</th><th>Задержка, мес.</th></tr>${rows}</table>
+    <p class="note" style="margin-top:10px">Мы вставляли в настоящие ряды МО падения расходов на 5–15% и смотрели, кто их заметит. Пороги всех детекторов настроены так, чтобы ложных тревог было поровну, 5% обычных МО за год. Иначе сравнение теряет смысл. Самое важное здесь вычесть из роста МО рост по стране: без этого детектор ловит вдвое меньше (пунктир). На росте расходов и на коротких провалах выбранный детектор тоже среди лучших (отчёт, раздел 6.3).</p>`;
+}
+
+function renderReal(C,N){
+  const panel=N?N.events.filter(e=>e.in_panel):[];
+  const NAME=Object.fromEntries(C.methods.map(m=>[m.method,m.name]));
+  const mAdd=(m,k)=>{const d=new Date(m+'-01');d.setMonth(d.getMonth()+k);return d.toISOString().slice(0,7);};
+  // первая тревога при доле ложных ≤ far: самый ранний месяц среди методов
+  const first=(e,far)=>{let best=null;
+    for(const [k,v] of Object.entries(e.first)){if(!v) continue;const [m,f]=k.split('|');
+      if(+f<=far&&(!best||v<best.t)) best={t:v,m};}
+    return best;};
+  const cell=(e,far)=>{const h=first(e,far);if(!h) return '<span class="pill no">нет</span>';
+    const ok=h.t<=mAdd(e.event,1);
+    return `<span class="pill ${ok?'ok':'no'}">${esc(h.t)}</span> <span class="note">${esc(NAME[h.m]||h.m)}</span>`;};
+  const EN=(N&&N.event_news)||{};
+  const rows=C.events.map(e=>{const k=EN[e.oktmo];
+    return `<tr><td>${esc(e.name)}</td><td class="num">${esc(e.event)}</td><td style="text-align:left">${cell(e,C.main_far)}</td><td style="text-align:left">${cell(e,0.2)}</td><td class="num">${k==null?'–':fmt(k)}</td></tr>`;}).join('');
+  const timely=far=>C.events.filter(e=>{const h=first(e,far);return h&&h.t<=mAdd(e.event,1);}).length;
+  const late5=C.events.filter(e=>{const h=first(e,C.main_far);return h&&h.t>mAdd(e.event,1);}).map(e=>e.name);
+  $('rEvents').innerHTML=`<h3>Паводки, которые точно были</h3>
+    <table><tr><th>МО</th><th>Событие</th><th style="text-align:left">Тревога при 5%</th><th style="text-align:left">при 20%</th><th>Новостей</th></tr>${rows}</table>
+    <p class="note" style="margin-top:10px">Когда сработал хоть какой-то детектор при 5% и 20% ложных тревог. <span class="pill ok">Зелёным</span> отмечено вовремя, в месяц события или следующий, <span class="pill no">красным</span> позже или никогда. В последнем столбце число новостей о самом МО в месяц события.</p>`;
+  $('rWhy').innerHTML=`<h3>Почему детекторы почти молчат</h3>
+    <ul class="clean">
+      <li>Расходы после паводков просели всего на 2–5 п.п. и быстро вернулись за счёт ремонта и выплат. Это меньше, чем обычные колебания МО.</li>
+      <li>При 5% ложных тревог вовремя не отмечено ни одно из ${C.events.length} событий${late5.length?` (${esc(late5.join(', '))} только через несколько месяцев)`:''}. При 20% отмечено ${timely(0.2)} из ${C.events.length}, но ложных тревог тогда вчетверо больше.</li>
+      <li>Новости о паводке вышли в тот же день: о прорыве дамбы в Орске написали 5 апреля. Данные СберИндекса за апрель вышли примерно через месяц.</li>
+    </ul>
+    <p>Поэтому слабые местные шоки мы ловим не только по расходам, но и по новостям.</p>`;
+}
+
+function renderNews(N){
+  if(!N){$('nStats').innerHTML='<p class="err">Данные новостей не найдены.</p>';return;}
+  const panel=N.events.filter(e=>e.in_panel);
+  const per=N.period&&N.period[0]?`, ${N.period[0]}–${N.period[1]}`:'';
+  $('nStats').innerHTML=stat(fmt(N.total_matches),`новостей о событиях с привязкой к МО или региону${per}`)+
+    stat(fmt(N.mo_mentioned),'МО упоминаются в новостях')+
+    stat(`${panel.filter(e=>e.found).length}/${panel.length}`,'известных событий в наших регионах нашлись в новостях',true)+
+    stat('~1 мес.','на столько новость опережает данные');
+  const st=N.cpd_stats;
+  $('nCpd').innerHTML=`<h3>Тревога по двум ключам</h3>
+    <p>Тревога звучит, если сигнал выше обычного порога. Если в этом или прошлом месяце была новость о шоке, хватает и более низкого порога.</p>
+    <table><tr><th>Какие новости учитываем</th><th>МО с тревогой по данным</th><th>С новостями</th><th>Добавилось</th></tr>
+    ${st.map(s=>`<tr><td>${esc(s.variant)}</td><td class="num">${s.mo_one_key}</td><td class="num">${s.mo_two_key}</td><td class="num" style="color:var(--accent)">+${s.mo_added}</td></tr>`).join('')}</table>
+    <p class="note" style="margin-top:8px">Новость о регионе снижает порог сразу у всех его МО, и тревог становится слишком много. Новости о самом МО добавляют немного, зато точнее.</p>`;
+  const E=N.event_eval||[];
+  const sets=[...new Set(E.map(r=>r.set_ru))],slices=[...new Set(E.map(r=>r.slice_ru))];
+  const cellE=(s,c)=>{const r=E.find(x=>x.set_ru===s&&x.slice_ru===c);if(!r) return '<td>–</td>';
+    const v=r.delta_pct;return `<td class="num" style="color:${v>0?'var(--bad)':v<0?'var(--accent)':'inherit'}">${v>0?'+':v<0?'−':''}${Math.abs(v).toFixed(1).replace('.',',')}%</td>`;};
+  $('nFc').innerHTML=`<h3>Новости как признак прогноза</h3>
+    <p class="note">Как меняется ошибка CatBoost, если добавить новости в прогноз. Зелёный минус – ошибка стала меньше, красный плюс – больше. Среднее по четырём запускам, те же 7 окон.</p>
+    <table><tr><th style="text-align:left">Признаки</th>${slices.map(c=>`<th>${esc(c)}</th>`).join('')}</tr>
+    ${sets.map(s=>`<tr><td style="text-align:left">${esc(s)}</td>${slices.map(c=>cellE(s,c)).join('')}</tr>`).join('')}</table>
+    <p class="note" style="margin-top:8px">По всем МО каждый набор только мешает, в регионах с режимом ЧС тоже: событий в истории мало, и модель цепляется за случайности. Небольшой выигрыш в МО, о которых писали про ЧС, может быть случайным. Поэтому в прогноз новости мы не включили. Их задача в другом: предупредить о шоке и объяснить тревогу на месяц раньше данных.</p>`;
+}
+
+// МО крупным планом: факт, прогнозы по окнам, сигнал детектора
+async function renderCase(o,ids,extra){
+  const [D,F,Cm]=await Promise.all([get('mo',o),get('forecast',o),get('cpdMo',o).catch(()=>null)]);
+  const name=D.info.mo_name;
+  // region_short – в родительном падеже («Оренбургской области»)
+  $(ids.title).textContent=`${short(name)}, муниципалитет ${D.info.region_short}`;
+  const act=D.series.all.map(p=>[p.time.slice(0,7),p.value]);
+  const months=act.map(a=>a[0]);
+  const ser=[{name:'факт',type:'line',symbol:'circle',symbolSize:5,itemStyle:{color:css('--ink')},lineStyle:{width:2.4},data:act.map(a=>a[1])}];
+  const best=MODELS.best;
+  const pick=[[best,css('--accent')],['prophet_default',css('--bad')],[best==='random_forest'?'timesfm':'random_forest',css('--violet')]];
+  const maes={};
+  for(const [m,c] of pick){const s=F.models[m];if(!s) continue;
+    // окна идут каждый месяц и перекрываются – линия из прогнозов на 1 месяц вперёд
+    const byT={};s.windows.forEach(w=>{const p=w.points[0];if(p)byT[p.time.slice(0,7)]=p.value;});
+    maes[m]={name:s.name,mae:s.windows.reduce((a,w)=>a+(w.mae||0),0)/s.windows.length};
+    ser.push({name:s.name.replace(' (Google)',''),type:'line',symbol:'none',lineStyle:{width:2,type:m===best?'solid':'dashed'},itemStyle:{color:c},
+      data:months.map(t=>byT[t]??null),connectNulls:false});}
+  const evName=e=>{const d=new Date(e.date),t=String(e.title||'событие').split(/[;.]/)[0];
+    return `${d.getDate()} ${MON[d.getMonth()]}: ${t.length>34?t.slice(0,32)+'…':t}`;};
+  // одна подпись на месяц (у Орска два события в апреле), горизонтально над графиком
+  const seen=new Set();
+  const evs=(D.events||[]).filter(e=>!seen.has(e.date.slice(0,7))&&seen.add(e.date.slice(0,7))).map(e=>({xAxis:e.date.slice(0,7),
+    label:{formatter:evName(e),color:css('--warn'),position:'end',fontWeight:600,distance:4},
+    lineStyle:{color:css('--warn'),type:'dotted',width:2}}));
+  ser[0].markLine={symbol:'none',data:evs,silent:true};
+  // у обоих графиков одинаковые поля и месяцы – столбец сигнала стоит ровно под своим месяцем
+  chart($(ids.chart),{grid:{left:58,right:16,top:evs.length?58:34,bottom:26},legend:{top:0},
+    tooltip:{trigger:'axis',valueFormatter:v=>v==null?'–':fmt(v)+' ₽'},
+    xAxis:{type:'category',data:months},yAxis:{type:'value',scale:true,axisLabel:{formatter:v=>fmt(v)}},series:ser});
+  if(Cm&&!Cm.error){
+    const xs=months;
+    const byS=Object.fromEntries(Cm.score.map(p=>[p.time.slice(0,7),p.value]));
+    chart($(ids.cpd),{grid:{left:58,right:16,top:24,bottom:26},
+      title:{text:`сигнал детектора ${Cm.name}`,textStyle:{fontSize:12,color:css('--muted'),fontWeight:'normal'},left:0,top:0},
+      tooltip:{trigger:'axis',valueFormatter:v=>v==null?'–':fmt(v,2)},
+      xAxis:{type:'category',data:xs},yAxis:{type:'value',splitNumber:2,max:v=>Math.ceil(Math.max(v.max,Cm.threshold*1.15))},
+      series:[{type:'bar',data:xs.map(t=>byS[t]==null?null:({value:byS[t],itemStyle:{color:byS[t]>Cm.threshold?css('--bad'):css('--info')}})),
+        markLine:{symbol:'none',silent:true,data:[{yAxis:Cm.threshold,label:{formatter:'порог',position:'insideStartTop',color:css('--muted')},lineStyle:{color:css('--bad'),type:'dashed'}}]}}]});
+  } else $(ids.cpd).innerHTML='<p class="note">Сигнал детектора для этого МО не рассчитан.</p>';
+  const rf=maes[best],pr=maes.prophet_default;
+  // в карточке – только суть события, без служебных пометок реестра после «;»
+  const ev=(D.events||[]).map(e=>`<li><b>${esc(e.date)}</b>: ${esc(String(e.title).split(';')[0])}</li>`).join('');
+  const maxS=Cm&&!Cm.error?Math.max(...Cm.score.map(p=>p.value)):null;
+  $(ids.side).innerHTML=`<h3>Цифры</h3>
+    <table><tr><td>Население</td><td class="num">${fmt(D.info.pop)}</td></tr>
+    <tr><td>Расходы ${D.info.year}, ₽/мес</td><td class="num">${fmt(D.info.spend_last)}</td></tr>
+    <tr><td>Рост расходов ${D.info.year} г. к ${D.info.year-1} г.</td><td class="num">${pct(D.info.growth_last,1)}</td></tr>
+    ${rf?`<tr class="best"><td>MAE: ${esc(rf.name)}</td><td class="num">${fmt(rf.mae)}</td></tr>`:''}
+    ${pr?`<tr class="ref"><td>MAE Prophet</td><td class="num">${fmt(pr.mae)}</td></tr>`:''}
+    ${maxS!=null?`<tr><td>Макс. сигнал / порог</td><td class="num">${fmt(maxS,1)} / ${fmt(Cm.threshold,1)}</td></tr>`:''}</table>
+    ${ev?`<h3 style="margin-top:12px">События</h3><ul class="clean">${ev}</ul>`:''}
+    ${typeof extra==='function'?extra(maes,Cm):extra||''}`;
+}
+
+// подпись для Орска – из цифр, а не заранее: какая модель точнее, дотянул ли сигнал
+function orskText(m,Cm,N){
+  const rf=m[MODELS.best],pr=m.prophet_default;
+  const who=rf&&pr?(rf.mae<=pr.mae
+    ?`Наш прогноз здесь точнее Prophet: ${fmt(rf.mae)} против ${fmt(pr.mae)} ₽.`
+    :`Здесь Prophet чуть точнее, ${fmt(pr.mae)} против ${fmt(rf.mae)} ₽: рост ровный, почти по прямой, и модели тренда этого хватает. Наш прогноз выигрывает в среднем по всем МО, а не в каждом.`):'';
+  const mx=Cm&&!Cm.error?Math.max(...Cm.score.map(p=>p.value)):null;
+  const sig=mx==null?'':mx>Cm.threshold?`Детектор отметил сдвиг: сигнал ${fmt(mx,1)} при пороге ${fmt(Cm.threshold,1)}.`
+    :`В расходах паводок почти не заметен: сигнал детектора не выше ${fmt(mx,1)} при пороге ${fmt(Cm.threshold,1)}.`;
+  const ev=N&&N.events.find(e=>e.event==='oren_2024_orsk');
+  const nw=ev?` Зато о самом Орске вышло ${ev.news_mo} новостей, начиная с первого дня, то есть на месяц раньше данных.`:'';
+  // тот же пример по шагам метода: ряд, прогноз, ошибка, сигнал, новости
+  const maeTxt=rf&&pr?`Среднее всех моделей ошибается на ${fmt(rf.mae)} ₽ в месяц, Prophet на ${fmt(pr.mae)} ₽.`:'';
+  const sigTxt=mx==null?'':mx>Cm.threshold?`сигнал ${fmt(mx,1)} выше порога ${fmt(Cm.threshold,1)}: детектор отметил сдвиг`:`сигнал не выше ${fmt(mx,1)} при пороге ${fmt(Cm.threshold,1)}: в расходах паводок почти не заметен`;
+  $('walk').style.display='';
+  $('walk').innerHTML=`<li><b>Берём ряд.</b> Чёрная линия показывает, сколько в месяц тратит по карте житель Орска. Пунктиром отмечен паводок 5 апреля 2024 г.</li>
+    <li><b>Строим прогноз.</b> Зелёная линия – прогноз на месяц вперёд, красный пунктир – Prophet.</li>
+    <li><b>Считаем ошибку.</b> ${maeTxt}</li>
+    <li><b>Смотрим сигнал.</b> Нижний график показывает, насколько расходы разошлись с ростом по стране. Красный столбец означает тревогу. Здесь ${sigTxt}.</li>
+    ${ev?`<li><b>Сверяем с новостями.</b> О самом Орске вышло ${ev.news_mo} новостей, с первого дня. Данные за апрель вышли примерно через месяц, и новости предупредили раньше.</li>`:''}`;
+  return `<p style="margin-top:10px">5 апреля 2024 г. в Орске прорвало дамбу. ${who} ${sig}${nw}</p>`;
+}
+
+// тревоги МО по эпизодам: у каждого свой пик сигнала (спад весной и разворот в декабре – разные события)
+const epSpan=e=>e.first===e.last?e.first:`${e.first}–${e.first.slice(0,4)===e.last.slice(0,4)?e.last.slice(5):e.last}`;
+function epsLabel(f){const E=f.episodes||[{first:f.first,last:f.first}];
+  return (E.length>1?'тревоги ':'тревога ')+E.map(epSpan).join(', ');}
+function caseText(f,thr){
+  const pp=v=>(v>0?'+':v<0?'−':'')+fmt(Math.abs(v)*100,1);
+  const E=f.episodes||[];
+  const li=E.map(e=>{const dir=e.x_before==null?'отклонение роста от страны':e.x_peak<e.x_before?'рост замедлился относительно страны':'рост ускорился относительно страны';
+    const span=e.x_before==null?`${pp(e.x_peak)} п.п. к ${e.peak}`:`с ${pp(e.x_before)} до ${pp(e.x_peak)} п.п. к ${e.peak}`;
+    return `<li><b>${epSpan(e)}</b>: ${dir}, ${span}. Сигнал до ${fmt(e.score,1)}.</li>`;}).join('');
+  return `<p style="margin-top:10px">Детектор следит за тем, насколько рост расходов МО год к году расходится с ростом по стране, и поднимает тревогу, когда это расхождение резко меняется, в любую сторону. Порог ${fmt(thr,1)}.</p>`+
+    (li?`<ul class="clean">${li}</ul>`:'')+
+    `<p>Причины в известных событиях нет, поэтому такой МО стоит проверить вручную: по новостям и годовой статистике.</p>`;
+}
+
+async function main(){
+  let S,M,H,C,R,N;
+  try{[S,M,H,C,R]=await Promise.all([get('summary'),get('models'),get('horizons'),get('cpd'),get('results')]);}
+  catch(e){$('tLead').innerHTML=`<span class="err">Не удалось загрузить данные: ${esc(e.message)}</span>`;return;}
+  N=await get('news').catch(()=>null);
+  if(N&&N.error) N=null;
+  MODELS=M;CPD=C;
+  renderTitle(S,M,C);renderModels(M,'MAE');renderHorizons(H,M);renderFM(M,H);renderCpd(C,'recall');renderReal(C,N);renderNews(N);renderNull(R.null_test);
+  $('rCfg').textContent=R.configs.map(c=>'configs/'+c).join('  ');
+  $('rGit').textContent=`Исходных файлов с контрольными суммами SHA-256: ${fmt(R.raw_files)}`;
+  const fl=C.flagged||[];
+  $('oDone').innerHTML=`<h3>Итоги</h3><ul class="clean">
+    <li>В среднем наш прогноз ошибается на ${pct(S.gain_vs_prophet)} меньше Prophet. Точнее Prophet на всех горизонтах, от месяца до года: на ${gainRange(H)}.</li>
+    <li>Готовые нейросети без дообучения точнее Prophet, а Chronos-Bolt на отклонении от региональной волны почти догоняет лучшую модель.</li>
+    <li>Лучший детектор: ${esc(C.best_name)}. Он ловит ${pct(C.methods.find(m=>m.method===C.best).recall[String(C.main_far)])} сдвигов при 5% ложных тревог, почти сразу. В 2024 г. он поднял тревогу в ${C.n_flagged} МО.</li>
+    <li>Все известные события в наших МО нашлись в новостях. Точнее прогноз от новостей не стал, зато они предупреждают о шоке на месяц раньше.</li>
+    <li>Весь расчёт повторяется одной командой, все настройки лежат в YAML, данные обновляются сами.</li></ul>`;
+
+  document.querySelectorAll('#mSeg button').forEach(b=>b.onclick=()=>{
+    document.querySelectorAll('#mSeg button').forEach(x=>x.classList.toggle('on',x===b));
+    echarts.getInstanceByDom($('mChart'))?.dispose();renderModels(MODELS,b.dataset.k);
+    $('mTitle').textContent=b.dataset.k==='R2_within'?'Насколько модели угадывают движение расходов (R² внутри МО, чем выше, тем лучше)':'Насколько ошибаются модели: '+(b.dataset.k==='MAE'?'₽ на жителя в месяц':'последнее окно, ₽');});
+  document.querySelectorAll('#cSeg button').forEach(b=>b.onclick=()=>{
+    document.querySelectorAll('#cSeg button').forEach(x=>x.classList.toggle('on',x===b));
+    echarts.getInstanceByDom($('cChart'))?.dispose();renderCpd(CPD,b.dataset.k);});
+
+  // примеры: Орск (паводок) + МО с тревогами детектора
+  const opts=[{o:'53723000',t:'Орск, паводок апреля 2024 г.'}].concat(
+    fl.slice(0,20).map(f=>({o:f.oktmo,t:`${short(f.mo_name)}: ${epsLabel(f)}, сигнал до ${fmt(f.score,1)}`})));
+  $('caseSel').innerHTML=opts.map(x=>`<option value="${x.o}">${esc(x.t)}</option>`).join('');
+  const ids1={title:'caseTitle',chart:'caseChart',cpd:'caseCpd',side:'caseSide'};
+  const show=o=>{[ids1.chart,ids1.cpd].forEach(i=>echarts.getInstanceByDom($(i))?.dispose());
+    if(o!=='53723000'){$('walk').innerHTML='';$('walk').style.display='none';}
+    return renderCase(o,ids1,o==='53723000'?(m,c)=>orskText(m,c,N):'').catch(e=>$('caseSide').innerHTML=`<p class="err">${esc(e.message)}</p>`);};
+  $('caseSel').onchange=e=>show(e.target.value);
+  const jobs=[show('53723000')];
+  if(fl.length){
+    const f=fl[0];
+    jobs.push(renderCase(f.oktmo,{title:'case2Title',chart:'case2Chart',cpd:'case2Cpd',side:'case2Side'},
+      caseText(f,C.threshold)).catch(()=>{}));
+  } else $('cases2').style.display='none';
+  await Promise.all(jobs);
+  document.body.dataset.ready='1';
+}
+main();
+// настольное приложение: кнопки окна, перетаскивание за меню, PDF из docs/ – системной программой
+if(DESKTOP){
+  document.documentElement.classList.add('desktop');
+  pyReady().then(py=>{
+    py.jsLog('info','view landing');
+    $('wMin').onclick=()=>py.winMinimize(); $('wMax').onclick=()=>py.winToggleMax(); $('wClose').onclick=()=>py.winClose();
+    const bar=document.querySelector('nav.top .in');let last=0;
+    bar.addEventListener('mousedown',e=>{
+      if(e.button!==0||e.target.closest('a,button')) return;
+      if(e.timeStamp-last<400){last=0;py.winToggleMax();e.preventDefault();return;}
+      last=e.timeStamp;const x0=e.screenX,y0=e.screenY;
+      const move=ev=>{if(Math.abs(ev.screenX-x0)+Math.abs(ev.screenY-y0)>4){off();py.winStartDrag();}};
+      const off=()=>{removeEventListener('mousemove',move);removeEventListener('mouseup',off);};
+      addEventListener('mousemove',move);addEventListener('mouseup',off);e.preventDefault();});
+    document.addEventListener('click',e=>{
+      const a=e.target.closest('a[href$=".pdf"]');if(!a) return;
+      e.preventDefault();
+      const u=new URL('../../docs/'+a.getAttribute('href').split('/').pop(),location.href).href;
+      py.jsLog('info','open_pdf '+u);py.openExternal(u);});
+    addEventListener('error',e=>py.jsLog('error',`landing ${e.message} @ ${(e.filename||'').split('/').pop()}:${e.lineno}`));
+  }).catch(e=>console.error(e));
+}
+document.getElementById('toTop').addEventListener('click',e=>{e.preventDefault();window.scrollTo({top:0,behavior:matchMedia('(prefers-reduced-motion:reduce)').matches?'auto':'smooth'});history.replaceState(null,'',location.pathname+location.search);});
+</script>
+</body>
+</html>

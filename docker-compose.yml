@@ -1,0 +1,17 @@
+# Полная версия одной командой:  docker compose up --build
+#   web    – API и интерфейс: http://localhost:8000 (документация API – /docs), только чтение
+#   worker – пересчёт по расписанию (configs/pipeline.yaml → schedule)
+# Данные, отчёты и логи хранятся в папках проекта (тома), переживают перезапуск.
+# Первый запуск без данных: docker compose run --rm worker python -m worker snapshot fetch
+services:
+  web:
+    build: .
+    ports: ["127.0.0.1:8000:8000"]      # только локально; наружу не публикуется
+    volumes: [./data:/app/data, ./reports:/app/reports, ./logs:/app/logs]
+    restart: unless-stopped
+
+  worker:
+    build: .
+    command: ["python", "-m", "worker", "loop"]
+    volumes: [./data:/app/data, ./reports:/app/reports, ./logs:/app/logs]
+    restart: unless-stopped

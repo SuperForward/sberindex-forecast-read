@@ -1,0 +1,32 @@
+# Проверка на чистой машине: установка по lock-файлу и быстрые тесты.
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    # основная платформа – Windows; Linux – чтобы не прокрался код только под Windows
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.lock.txt
+      - name: Установка
+        run: python -m pip install -r requirements-dev.txt
+      - name: Тесты
+        env:
+          PYTHONUTF8: "1"
+        run: python -m pytest -q
+      - name: Воркер без данных не падает
+        env:
+          PYTHONUTF8: "1"
+        run: python -m worker status
