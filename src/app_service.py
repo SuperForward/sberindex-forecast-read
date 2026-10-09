@@ -531,10 +531,14 @@ def shocks_overview(shock_type: str = "", year: int = 0, show_caution: bool = Fa
 @_cached
 def _n_territories() -> int | None:
     """Число кодов территорий в официальном наборе: больше числа МО на дубли кодов
-    (Павловский Посад до и после 2024 г.). Без исходных файлов – None."""
+    (Павловский Посад до и после 2024 г.). Без сырых файлов – по коду территории в панели."""
     f = RAW_DIR / "hackathon" / "consumption.parquet"
     try:
-        return int(pd.read_parquet(f, columns=["territory_id"])["territory_id"].nunique()) if f.exists() else None
+        if f.exists():
+            return int(pd.read_parquet(f, columns=["territory_id"])["territory_id"].nunique())
+        # снимок данных без сырых файлов: код территории есть в самой панели
+        p = _panel()
+        return int(p["territory_id"].nunique()) if "territory_id" in p.columns else None
     except Exception:  # noqa: BLE001
         return None
 

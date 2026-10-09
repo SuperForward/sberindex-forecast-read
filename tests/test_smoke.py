@@ -34,6 +34,8 @@ def test_pipeline_config_is_portable():
         for p in s.get("needs", []) + s.get("code", []) + s.get("makes", []):
             assert not re.match(r"^([A-Za-z]:|/|\\)", p), f"{s['name']}: абсолютный путь {p}"
         for p in s.get("code", []):
+            if p.startswith("data/models/"):        # веса скачиваются отдельно (python -m worker models)
+                continue
             assert list(ROOT.glob(p)), f"{s['name']}: нет файла кода {p}"
 
 
@@ -89,10 +91,14 @@ def test_ridge_regularization_ignores_weight_scale():
 
 def test_detectors_react_to_shift():
     from src.cpd.methods import SCORES, START
+    from src.forecast import foundation
+    chronos_ok = foundation.available("chronos")[0]        # без весов детекторы на Chronos не проверяются
     rng = np.random.default_rng(0)
     z = rng.standard_normal((200, 12))
     z[:100, 6:] -= 4                                          # сдвиг у половины рядов
     for name, fn in SCORES.items():
+        if name.startswith("chronos") and not chronos_ok:
+            continue
         s = fn(z)
         assert s.shape == z.shape
         shifted, clean = s[:100, 6:].max(axis=1).mean(), s[100:, 6:].max(axis=1).mean()

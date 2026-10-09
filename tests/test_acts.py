@@ -1,8 +1,13 @@
 """Разбор официальных актов о ЧС (src/news/acts.py)."""
 
 import pandas as pd
+import pytest
 
+from src import store
 from src.news.acts import kind, parse, region_monthly
+
+# регионы ищутся по справочнику из панели МО: без данных (чистый CI) тест пропускается
+HAS_DATA = not store.load("spending_mo").empty
 
 
 def test_kind():
@@ -12,6 +17,7 @@ def test_kind():
     assert kind("О внесении изменений в постановление о введении режима чрезвычайной ситуации") != "intro"
 
 
+@pytest.mark.skipif(not HAS_DATA, reason="нужна панель МО")
 def test_parse_region_and_cause():
     items = [{"id": "1", "documentDate": "2024-04-04T00:00:00", "publishDateShort": "2024-04-05T00:00:00",
               "name": "О введении режима чрезвычайной ситуации в лесах",

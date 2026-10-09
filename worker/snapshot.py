@@ -12,6 +12,7 @@ import hashlib
 import logging
 import os
 import shutil
+import time
 import urllib.error
 import urllib.request
 import zipfile
@@ -99,10 +100,31 @@ def fetch(url: str | None = None, echo=print) -> None:
     part = zpath.with_name(zpath.name + ".part")
     try:
         # сначала во временный файл: обрыв связи не оставит битый архив под
-        # настоящим именем; длину сверяем с заголовком сервера
-        with urllib.request.urlopen(url, timeout=120) as r, open(part, "wb") as f:
-            want_len = int(r.headers.get("Content-Length") or 0)
-            shutil.copyfileobj(r, f)
+        # настоящим именем; длину сверяем с заголовком сервера. Обрыв или
+        # долгая пауза сети – повтор с докачкой с места обрыва (Range), до 5 раз
+        part.unlink(missing_ok=True)
+        want_len = 0
+        for attempt in range(1, 6):
+            have = part.stat().st_size if part.exists() else 0
+            req = urllib.request.Request(url, headers={"Range": f"bytes={have}-"} if have else {})
+            try:
+                with urllib.request.urlopen(req, timeout=120) as r,                         open(part, "ab" if have and r.status == 206 else "wb") as f:
+                    if r.status == 206:
+                        total = r.headers.get("Content-Range", "").rsplit("/", 1)[-1]
+                        want_len = int(total) if total.isdigit() else 0
+                    else:
+                        want_len = int(r.headers.get("Content-Length") or 0)
+                    shutil.copyfileobj(r, f)
+                break
+            except urllib.error.HTTPError:
+                raise
+            except OSError as e:          # таймаут, сброс соединения, нет сети
+                if attempt == 5:
+                    raise
+                got = part.stat().st_size if part.exists() else 0
+                log.warning("snapshot_retry  попытка %d: %s (скачано %.1f МБ)", attempt, e, got / 1e6)
+                echo(f"связь прервалась ({e}), повтор {attempt + 1}/5 с места обрыва")
+                time.sleep(3 * attempt)
         got_len = part.stat().st_size
         if want_len and got_len != want_len:
             part.unlink()
